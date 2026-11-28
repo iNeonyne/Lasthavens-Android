@@ -49,7 +49,7 @@ Update this file when strategic priorities, sequence or release direction change
 <!-- ROADMAP-LIVE-START -->
 ## Live issue and PR inventory
 
-Generated: 2026-11-28T17:53:47+00:00
+Generated: 2026-11-28T17:56:08+00:00
 Source of truth: live GitHub Issues, pull requests and labels. This section is generated automatically; do not edit it manually.
 
 Every open issue is listed below, grouped by its current priority. Opening a newer issue or PR does not supersede an older one. Duplicates and supersession must be explicitly reviewed and linked in GitHub.
@@ -71,7 +71,6 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 - [#15 — P2 — Make updater recovery safer](https://github.com/iNeonyne/LastHavenPlus/issues/15) — bug, P2
 - [#16 — P2 — Keep-awake preference for landscape-only gameplay](https://github.com/iNeonyne/LastHavenPlus/issues/16) — enhancement, P2
 - [#17 — P2 — Back up and restore launcher settings](https://github.com/iNeonyne/LastHavenPlus/issues/17) — enhancement, P2
-- [#184 — P2 — Move diagnostics log I/O off the Compose main thread](https://github.com/iNeonyne/LastHavenPlus/issues/184) — P2, performance, coderabbit-fix
 - [#221 — P2 — Audit localization completeness and RTL layout behavior](https://github.com/iNeonyne/LastHavenPlus/issues/221) — enhancement, P2
 - [#223 — P2 — Confirm destructive clearing of local diagnostic logs](https://github.com/iNeonyne/LastHavenPlus/issues/223) — bug, P2
 - [#230 — P2 — Handle malformed updater installer handoff state without crashing](https://github.com/iNeonyne/LastHavenPlus/issues/230) — bug, P2
@@ -103,7 +102,6 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 - [#250 — ui: start landscape launcher redesign and POCO smoke coverage (#248)](https://github.com/iNeonyne/LastHavenPlus/pull/250) (beta <- chaty/native-landscape-ui-248)
 - [#255 — docs(addons): document the addon security trust model (#233)](https://github.com/iNeonyne/LastHavenPlus/pull/255) (beta <- vibe/addon-trust-docs-233)
 - [#257 — Show unavailable game storage when no origin estimate is accessible](https://github.com/iNeonyne/LastHavenPlus/pull/257) (beta <- coderabbit/game-origin-storage-28)
-- [#258 — Move diagnostics log I/O off the Compose main thread](https://github.com/iNeonyne/LastHavenPlus/pull/258) (beta <- coderabbit/issue-184-diagnostics-io)
 
 ### Recently completed (last 30 days)
 
@@ -119,6 +117,7 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 - [#188 — P2 — Audit and update stable Android dependencies](https://github.com/iNeonyne/LastHavenPlus/issues/188)
 - [#186 — P2 — Confirm GeckoView top-level navigation policy for the launcher](https://github.com/iNeonyne/LastHavenPlus/issues/186)
 - [#185 — P2 — Reconcile ownership-label automation with the project ownership contract](https://github.com/iNeonyne/LastHavenPlus/issues/185)
+- [#184 — P2 — Move diagnostics log I/O off the Compose main thread](https://github.com/iNeonyne/LastHavenPlus/issues/184)
 - [#183 — P2 — Disconnect stale addon bridge ports when GeckoSession changes](https://github.com/iNeonyne/LastHavenPlus/issues/183)
 - [#182 — P2 — Close BSDIFF section streams when later initialization fails](https://github.com/iNeonyne/LastHavenPlus/issues/182)
 - [#181 — P2 — Remove obsolete verified updater APKs safely](https://github.com/iNeonyne/LastHavenPlus/issues/181)
