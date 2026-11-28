@@ -19,7 +19,7 @@ class DiagnosticsTest {
       Diagnostics.sanitize(
         "Authorization: Bearer abc123\n" +
           "cookie=crumbs token=xyz access_token=hidden\n" +
-          "https://example.invalid/play?session_id=private&view=game"
+          "https://example.invalid/play?session_id=private&view=game",
       )
 
     assertTrue(sanitized.contains("Authorization: [REDACTED]"))
@@ -38,7 +38,7 @@ class DiagnosticsTest {
     val sanitized =
       Diagnostics.sanitize(
         "Cookie: session=first-secret; auth=second-secret\n" +
-          "Set-Cookie: refresh=third-secret; HttpOnly"
+          "Set-Cookie: refresh=third-secret; HttpOnly",
       )
 
     assertTrue(sanitized.contains("Cookie: [REDACTED]"))
@@ -66,7 +66,7 @@ class DiagnosticsTest {
         "api_key=variant-one api-key=variant-two apikey=variant-three " +
           "session=plain-session session-id=dashed-session sessionid=joined-session " +
           "session_id=underscored-session refresh_token=rt-secret " +
-          "token: Bearer prefixed-secret"
+          "token: Bearer prefixed-secret",
       )
 
     assertFalse(sanitized.contains("variant-"))
@@ -84,7 +84,7 @@ class DiagnosticsTest {
     val sanitized =
       Diagnostics.sanitize(
         "https://example.invalid/play?auth=query-secret&key=key-secret&code=code-secret" +
-          "&refresh_token=refresh-secret&password=password-secret&token=token-secret&view=game"
+          "&refresh_token=refresh-secret&password=password-secret&token=token-secret&view=game",
       )
 
     assertFalse(sanitized.contains("query-secret"))
@@ -110,6 +110,63 @@ class DiagnosticsTest {
   @Test
   fun keepsNonSensitiveContentIntact() {
     val content = "Interface: 30300 view=game status=ok count=42"
+    assertEquals(content, Diagnostics.sanitize(content))
+  }
+
+  @Test
+  fun redactsUrlUserInfoWhileKeepingHostPathAndOrdinaryQueryParameters() {
+    val content =
+      "Opening https://guest:password@example.invalid/play and " +
+        "wss://guest%40mail:p%40ss%2Fword@[::1]:8443/socket?view=game#ready"
+
+    assertEquals(
+      "Opening https://[REDACTED]@example.invalid/play and " +
+        "wss://[REDACTED]@[::1]:8443/socket?view=game#ready",
+      Diagnostics.sanitize(content),
+    )
+  }
+
+  @Test
+  fun redactsStandaloneBearerCredentialsWithoutConsumingFollowingText() {
+    val content = "Request rejected (bEaReR\tabc.DEF+/_~-==), retrying in 5 seconds."
+
+    assertEquals(
+      "Request rejected (bEaReR\t[REDACTED]), retrying in 5 seconds.",
+      Diagnostics.sanitize(content),
+    )
+  }
+
+  @Test
+  fun redactsCredentialsFromExceptionMessagesBeforeWriting() {
+    val directory = temporaryFolder.newFolder("exception-redaction")
+    val error = IOException("https://guest:password@example.invalid/play rejected Bearer abc123")
+
+    Diagnostics.writeEntry(directory, "E", "Test", "Request failed: ${error.message}")
+
+    val line = File(directory, "lasthavenplus.log").readText()
+    assertTrue(
+      line.endsWith(
+        "E/Test: Request failed: https://[REDACTED]@example.invalid/play rejected Bearer [REDACTED]\n",
+      ),
+    )
+  }
+
+  @Test
+  fun redactsCompleteBasicAndBearerAuthorizationHeaders() {
+    val content = "Authorization: Basic dXNlcjpwYXNz\nauthorization: Bearer abc123\nstatus=failed"
+
+    assertEquals(
+      "Authorization: [REDACTED]\nauthorization: [REDACTED]\nstatus=failed",
+      Diagnostics.sanitize(content),
+    )
+  }
+
+  @Test
+  fun keepsSimilarWordsAndAtSignsOutsideUrlAuthoritiesIntact() {
+    val content =
+      "BearerToken enabled, pallbearer ready, bearer_mode=on. " +
+        "https://example.invalid/users/guest@example.invalid?view=guest@example.invalid"
+
     assertEquals(content, Diagnostics.sanitize(content))
   }
 
