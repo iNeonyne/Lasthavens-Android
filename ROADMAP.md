@@ -49,7 +49,7 @@ Update this file when strategic priorities, sequence or release direction change
 <!-- ROADMAP-LIVE-START -->
 ## Live issue and PR inventory
 
-Generated: 2026-11-28T17:56:08+00:00
+Generated: 2026-11-28T17:58:39+00:00
 Source of truth: live GitHub Issues, pull requests and labels. This section is generated automatically; do not edit it manually.
 
 Every open issue is listed below, grouped by its current priority. Opening a newer issue or PR does not supersede an older one. Duplicates and supersession must be explicitly reviewed and linked in GitHub.
@@ -100,8 +100,8 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 ### Open pull requests
 
 - [#250 — ui: start landscape launcher redesign and POCO smoke coverage (#248)](https://github.com/iNeonyne/LastHavenPlus/pull/250) (beta <- chaty/native-landscape-ui-248)
-- [#255 — docs(addons): document the addon security trust model (#233)](https://github.com/iNeonyne/LastHavenPlus/pull/255) (beta <- vibe/addon-trust-docs-233)
-- [#257 — Show unavailable game storage when no origin estimate is accessible](https://github.com/iNeonyne/LastHavenPlus/pull/257) (beta <- coderabbit/game-origin-storage-28)
+- [#261 — docs(addons): document the addon security trust model](https://github.com/iNeonyne/LastHavenPlus/pull/261) (beta <- chaty/addon-trust-docs-rebased)
+- [#262 — Show unavailable game storage when no origin estimate is accessible](https://github.com/iNeonyne/LastHavenPlus/pull/262) (beta <- chaty/game-origin-storage-rebased)
 
 ### Recently completed (last 30 days)
 
