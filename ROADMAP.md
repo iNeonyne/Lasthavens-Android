@@ -49,7 +49,7 @@ Update this file when strategic priorities, sequence or release direction change
 <!-- ROADMAP-LIVE-START -->
 ## Live issue and PR inventory
 
-Generated: 2026-11-28T19:12:29+00:00
+Generated: 2026-11-28T19:13:35+00:00
 Source of truth: live GitHub Issues, pull requests and labels. This section is generated automatically; do not edit it manually.
 
 Every open issue is listed below, grouped by its current priority. Opening a newer issue or PR does not supersede an older one. Duplicates and supersession must be explicitly reviewed and linked in GitHub.
@@ -84,7 +84,7 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 - [#234 — P2 — Apply small updater, bridge protocol and archive safety cleanups](https://github.com/iNeonyne/LastHavenPlus/issues/234) — P2, maintenance
 - [#235 — P2 — Preserve explicit return destinations when opening Diagnostics](https://github.com/iNeonyne/LastHavenPlus/issues/235) — bug, P2
 - [#243 — P2 — Include version and channel in published APK asset names](https://github.com/iNeonyne/LastHavenPlus/issues/243) — enhancement, P2
-- [#263 — P2 — Bound remote release notes before displaying them](https://github.com/iNeonyne/LastHavenPlus/issues/263) — bug, P2
+- [#263 — P2 — Bound remote release notes before displaying them](https://github.com/iNeonyne/LastHavenPlus/issues/263) — bug, P2, coderabbit-fix
 - [#264 — P2 — Avoid inefficient delta downloads and preflight updater storage](https://github.com/iNeonyne/LastHavenPlus/issues/264) — P2, maintenance, coderabbit-fix
 
 #### P3
