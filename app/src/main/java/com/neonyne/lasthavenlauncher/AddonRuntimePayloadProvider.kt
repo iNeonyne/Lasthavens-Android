@@ -248,12 +248,16 @@ internal class AddonRuntimePayloadProvider(private val repository: AddonLibraryR
     return addonBytes
   }
 
+  /**
    * Extracts validated TOC load-file entry points for every addon folder in [manifest]
    * (issue #245). Each list keeps only paths that are present in the served manifest for the same
    * folder, deduplicated case-insensitively. A missing or unreadable TOC yields an empty list for
    * that addon so one malformed addon cannot fail the whole bootstrap plan.
+   */
   fun entryPoints(manifest: Manifest): Map<String, List<String>> = repository.withLibraryAccess {
     entryPointsLocked(manifest)
+  }
+
   private fun entryPointsLocked(manifest: Manifest): Map<String, List<String>> {
     val filesByFolder = manifest.files.groupBy { it.folder }
     val result = LinkedHashMap<String, List<String>>()
@@ -271,10 +275,15 @@ internal class AddonRuntimePayloadProvider(private val repository: AddonLibraryR
                 if (toc.sizeBytes in 1..AddonArchive.MAX_TOC_BYTES) toc.file.readBytes()
                 else ByteArray(0)
               AddonRuntimePlanner.parseTocLoadFiles(String(content, StandardCharsets.UTF_8))
+            }
             .getOrDefault(emptyList())
             .filter { it in available || it.lowercase(Locale.ROOT) in availableLower }
             .distinctBy { it.lowercase(Locale.ROOT) }
+        }
+    }
     return result
+  }
+
   fun page(manifest: Manifest, page: Int): List<FileDescriptor> {
     if (page !in 0 until manifest.pageCount) {
       throw AddonRuntimePayloadException("invalidRequest")
