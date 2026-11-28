@@ -182,13 +182,16 @@ jobs:
           gradle-version: wrapper
           validate-wrappers: true
 
-      - name: Run UI smoke tests on an ARM64 Android emulator
+      - name: Run UI smoke tests on x86_64 emulator (Poco X6 Pro profile)
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        env:
+          ANDROID_I_WANT_MY_TCG: yes
         with:
           api-level: 35
           target: google_apis
           arch: x86_64
           profile: pixel_7_pro
+          disable-linux-hw-accel: true
           cores: 4
           ram-size: 4096M
           heap-size: 512M
