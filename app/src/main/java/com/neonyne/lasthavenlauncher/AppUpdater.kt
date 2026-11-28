@@ -197,8 +197,12 @@ object AppUpdater {
                 maximumApkBytes = MAX_APK_BYTES,
               )
 
-              val patch = runCatching {
-                manifest.optJSONObject("patch")?.let { patchJson ->
+              val patch =
+                UpdateManifestPolicy.optionalPatch(
+                  onInvalid = { message -> Diagnostics.warn(appContext, "Updater", message) },
+                ) {
+                  if (manifest.isNull("patch")) return@optionalPatch null
+                  val patchJson = manifest.getJSONObject("patch")
                   val patchName = patchJson.getString("name")
                   val patchAsset =
                     assetByName[patchName]
@@ -235,8 +239,6 @@ object AppUpdater {
                       )
                     }
                 }
-              }
-                .getOrNull()
 
               UpdateCheckResult.Available(
                 AppUpdateInfo(
