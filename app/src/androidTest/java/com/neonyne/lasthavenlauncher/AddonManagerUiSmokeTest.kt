@@ -2,6 +2,7 @@ package com.neonyne.lasthavenlauncher
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNode
@@ -97,4 +98,45 @@ class AddonManagerUiSmokeTest {
     assertTrue("Remove confirmation should be wired", removed.get())
     assertTrue("Back action should be wired", returned.get())
   }
+
+  @Test
+  fun addonWithMissingDependencyIsBlockedAndCannotBeEnabled() {
+    val addon =
+      AddonLibraryItem(
+        title = "Blocked Smoke Addon",
+        folder = "BlockedSmoke",
+        version = "1.0",
+        interfaceVersion = "30300",
+        notes = "",
+        dependencies = listOf("MissingDependency"),
+        sizeBytes = 2_048L,
+        filesCount = 3,
+        enabled = false,
+        importedAt = 1L,
+        warnings = emptyList(),
+      )
+
+    composeRule.setContent {
+      MaterialTheme(
+        colorScheme = DesignTokens.colorScheme(),
+        typography = DesignTokens.typography(),
+        shapes = DesignTokens.shapes,
+      ) {
+        AddonManagerScreen(
+          snapshot = AddonLibrarySnapshot(revision = "blocked-ui-smoke", addons = listOf(addon)),
+          busy = false,
+          message = null,
+          onImport = {},
+          onToggle = { _, _ -> error("A blocked addon must not be enabled") },
+          onExport = {},
+          onRemove = {},
+          onBack = {},
+        )
+      }
+    }
+
+    composeRule.onNodeWithText("Blocked").assertIsDisplayed()
+    composeRule.onNode(isToggleable()).assertIsNotEnabled()
+  }
+
 }

@@ -88,7 +88,7 @@ fun AddonManagerScreen(
       }
       OutlinedButton(
         onClick = onBack,
-        enabled = !busy,
+        enabled = !busy && (addon.enabled || !isBlocked),
         modifier = Modifier.heightIn(min = DesignTokens.minTouchTarget),
       ) {
         Text(stringResource(R.string.addon_manager_back))
@@ -255,10 +255,8 @@ private fun AddonCard(
   val missing = dependencyReport.missingByFolder[addon.folder].orEmpty()
   val isBlocked = missing.isNotEmpty() || addon.folder in dependencyReport.cyclicFolders
   val warningCount =
-    maxOf(
-      addon.warnings.size,
-      if (addon.sizeBytes > AddonLimits.MAX_RUNTIME_BUNDLE_BYTES) 1 else 0,
-    )
+    addon.warnings.size +
+      if (addon.sizeBytes > AddonLimits.MAX_RUNTIME_BUNDLE_BYTES) 1 else 0
   val hasWarnings = warningCount > 0
   val status =
     when {
