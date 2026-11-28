@@ -229,7 +229,279 @@ private fun SettingsNavigationFrame(
   selected: SettingsDestination,
   onSelect: (SettingsDestination) -> Unit,
   onBack: () -> Unit,
-  content: @Composable () -> Unit,
+  content: @Composable
+fun DiagnosticsScreen(
+  context: Context,
+  onBack: () -> Unit,
+) {
+  val log = remember(context.applicationContext) { DiagnosticsLog(context.applicationContext) }
+  var state by
+    remember(log) {
+      mutableStateOf<DiagnosticsState>(DiagnosticsState.Loading(DiagnosticsAction.READ))
+    }
+  val currentState = state
+
+  LaunchedEffect(log, currentState) {
+    if (currentState is DiagnosticsState.Loading) state = log.execute(currentState.action)
+  }
+
+  val busy = currentState is DiagnosticsState.Loading
+  val displayText =
+    when (currentState) {
+      is DiagnosticsState.Loading ->
+        stringResource(
+          when (currentState.action) {
+            DiagnosticsAction.READ -> R.string.diagnostics_loading
+            DiagnosticsAction.CLEAR -> R.string.diagnostics_clearing
+          },
+        )
+      is DiagnosticsState.Loaded -> currentState.content
+      DiagnosticsState.Cleared -> stringResource(R.string.diagnostics_cleared)
+      is DiagnosticsState.Failed ->
+        stringResource(
+          when (currentState.action) {
+            DiagnosticsAction.READ -> R.string.diagnostics_read_failed
+            DiagnosticsAction.CLEAR -> R.string.diagnostics_clear_failed
+          },
+        )
+    }
+  SettingsPageFrame(title = stringResource(R.string.diagnostics_title), onBack = onBack) {
+    PageSection(title = stringResource(R.string.diagnostics_log_section)) {
+      Text(
+        stringResource(R.string.diagnostics_privacy_hint),
+        color = DesignTokens.textSecondary,
+        style = MaterialTheme.typography.bodySmall,
+      )
+      Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = DesignTokens.logSurface,
+        shape = MaterialTheme.shapes.medium,
+      ) {
+        Text(
+          displayText,
+          modifier = Modifier.padding(DesignTokens.spaceSection),
+          color =
+            if (currentState is DiagnosticsState.Failed) MaterialTheme.colorScheme.error
+            else DesignTokens.textBody,
+          style = MaterialTheme.typography.bodySmall,
+        )
+      }
+      Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.spaceSmall)) {
+        OutlinedButton(
+          onClick = {
+            if (state !is DiagnosticsState.Loading) {
+              state = DiagnosticsState.Loading(DiagnosticsAction.READ)
+            }
+          },
+          enabled = !busy,
+        ) {
+          Text(stringResource(R.string.action_refresh))
+        }
+        OutlinedButton(
+          onClick = {
+            if (state !is DiagnosticsState.Loading) {
+              state = DiagnosticsState.Loading(DiagnosticsAction.CLEAR)
+            }
+          },
+          enabled = !busy,
+        ) {
+          Text(stringResource(R.string.diagnostics_clear))
+        }
+      }
+      Button(
+        onClick = {
+          val content = (state as? DiagnosticsState.Loaded)?.content ?: return@Button
+          val share =
+            Intent(Intent.ACTION_SEND).apply {
+              type = "text/plain"
+              putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.diagnostics_share_subject))
+              putExtra(Intent.EXTRA_TEXT, content)
+            }
+          context.startActivity(
+            Intent.createChooser(share, context.getString(R.string.diagnostics_share_chooser)),
+          )
+        },
+        modifier = Modifier.fillMaxWidth(),
+        enabled = currentState is DiagnosticsState.Loaded,
+      ) {
+        Text(stringResource(R.string.diagnostics_share))
+      }
+    }
+  }
+}
+
+@Composable
+// All launcher-owned update-page copy is sourced from default Android string resources.
+internal fun UpdateScreen(
+  update: AppUpdateInfo?,
+  message: String?,
+  isChecking: Boolean,
+  isDownloading: Boolean,
+  downloadingDelta: Boolean,
+  progress: UpdateProgressState,
+  onBack: () -> Unit,
+  onDownload: (preferDelta: Boolean) -> Unit,
+) {
+  SettingsPageFrame(title = stringResource(R.string.updates_title), onBack = onBack) {
+    PageSection(title = stringResource(R.string.updates_status_section)) {
+      when {
+        isChecking -> {
+          LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+          Text(stringResource(R.string.updates_checking), color = DesignTokens.textSecondary)
+        }
+        update != null -> {
+          Text(
+            stringResource(R.string.updates_available, update.version),
+            color = DesignTokens.textPrimary,
+          )
+          if (update.patch != null) {
+            val patchMib =
+              String.format(java.util.Locale.US, "%.1f", update.patch.size / 1024.0 / 1024.0)
+            Text(
+              stringResource(R.string.updates_delta_available, patchMib),
+              color = DesignTokens.textSecondary,
+            )
+          }
+          if (update.releaseNotes.isNotBlank()) {
+            Text(update.releaseNotes, color = DesignTokens.textSecondary)
+          }
+          if (isDownloading) {
+            val downloadLabel =
+              when (progress.stage) {
+                UpdateStage.DIFFERENTIAL_DOWNLOAD ->
+                  stringResource(R.string.updates_downloading_delta)
+                UpdateStage.FULL_DOWNLOAD -> stringResource(R.string.updates_downloading_full)
+                UpdateStage.VERIFYING -> stringResource(R.string.updates_verifying)
+                UpdateStage.READY -> stringResource(R.string.updates_ready)
+                else ->
+                  if (downloadingDelta) stringResource(R.string.updates_downloading_delta)
+                  else stringResource(R.string.updates_downloading_full)
+              }
+            val progressPercent = progress.percent
+            if (progressPercent != null) {
+              LinearProgressIndicator(
+                progress = { progressPercent / 100f },
+                modifier = Modifier.fillMaxWidth(),
+              )
+            } else {
+              LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            Text(downloadLabel, color = DesignTokens.textSecondary)
+            if (progress.downloadAttempt > 1) {
+              Text(
+                stringResource(R.string.updates_retrying_attempt, progress.downloadAttempt),
+                color = DesignTokens.textSecondary,
+              )
+            }
+            val totalLabel =
+              if (progress.totalKnown) formatBytes(progress.totalBytes)
+              else stringResource(R.string.updates_unknown_size)
+            Text(
+              if (progress.totalKnown) {
+                stringResource(
+                  R.string.updates_progress_bytes,
+                  formatBytes(progress.receivedBytes),
+                  totalLabel,
+                )
+              } else {
+                stringResource(
+                  R.string.updates_progress_received,
+                  formatBytes(progress.receivedBytes),
+                )
+              },
+              color = DesignTokens.textSecondary,
+            )
+            progress.estimatedBytesPerSecond?.let { rate ->
+              Text(
+                stringResource(R.string.updates_progress_speed, formatBytes(rate)),
+                color = DesignTokens.textSecondary,
+              )
+            }
+            progress.estimatedSecondsRemaining?.let { seconds ->
+              Text(
+                stringResource(R.string.updates_progress_eta, seconds),
+                color = DesignTokens.textSecondary,
+              )
+            }
+            if (progress.fallbackToFull) {
+              Text(
+                stringResource(R.string.updates_fallback_full),
+                color = DesignTokens.textSecondary,
+              )
+            }
+          } else if (progress.stage == UpdateStage.FAILED) {
+            val retryHapticView = LocalView.current
+            Text(
+              progress.failureMessage
+                ?: message
+                ?: stringResource(R.string.updates_download_failed),
+              color = MaterialTheme.colorScheme.error,
+            )
+            OutlinedButton(
+              onClick = {
+                restrainedActionFeedback(retryHapticView)
+                onDownload(downloadingDelta)
+              },
+              modifier = Modifier.fillMaxWidth(),
+            ) {
+              Text(stringResource(R.string.updates_retry_download))
+            }
+            if (update.patch != null && downloadingDelta) {
+              TextButton(onClick = { onDownload(false) }, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                  stringResource(
+                    if (progress.fallbackToFull) R.string.updates_retry_full
+                    else R.string.updates_download_full_instead,
+                  ),
+                )
+              }
+            }
+          } else {
+            val hapticView = LocalView.current
+            Button(
+              onClick = {
+                // Haptic confirmation for explicit download actions only.
+                restrainedActionFeedback(hapticView)
+                onDownload(update.patch != null)
+              },
+              modifier = Modifier.fillMaxWidth(),
+            ) {
+              Text(
+                if (update.patch != null) stringResource(R.string.updates_download_smaller)
+                else stringResource(R.string.updates_download_full),
+              )
+            }
+            if (update.patch != null) {
+              OutlinedButton(
+                onClick = {
+                  restrainedActionFeedback(hapticView)
+                  onDownload(false)
+                },
+                modifier = Modifier.fillMaxWidth(),
+              ) {
+                Text(stringResource(R.string.updates_download_full_instead))
+              }
+            }
+          }
+        }
+        else ->
+          Text(
+            message ?: stringResource(R.string.updates_no_info),
+            color = DesignTokens.textSecondary,
+          )
+      }
+    }
+    if (message != null && update != null && progress.stage != UpdateStage.FAILED) {
+      PageSection(title = stringResource(R.string.updates_download_status)) {
+        Text(message, color = DesignTokens.textSecondary)
+      }
+    }
+  }
+}
+
+
+
+@Composable () -> Unit,
 ) {
   BoxWithConstraints(
     modifier = Modifier.fillMaxSize().background(DesignTokens.ink).padding(12.dp),
