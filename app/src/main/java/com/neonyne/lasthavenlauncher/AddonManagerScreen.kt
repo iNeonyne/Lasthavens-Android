@@ -93,6 +93,12 @@ fun AddonManagerScreen(
       style = MaterialTheme.typography.bodyMedium,
     )
 
+    Text(
+      stringResource(R.string.addon_manager_import_trust_warning),
+      color = MaterialTheme.colorScheme.error,
+      style = MaterialTheme.typography.bodySmall,
+    )
+
     Row(
       modifier = Modifier.fillMaxWidth(),
       horizontalArrangement = Arrangement.spacedBy(10.dp),
