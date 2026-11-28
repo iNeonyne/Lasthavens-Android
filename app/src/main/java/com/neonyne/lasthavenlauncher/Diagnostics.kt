@@ -2,6 +2,11 @@ package com.neonyne.lasthavenlauncher
 
 import android.content.Context
 import java.io.File
+import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.file.Files
+import java.nio.file.NoSuchFileException
+import java.nio.file.attribute.BasicFileAttributes
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -10,21 +15,23 @@ import java.util.Locale
 object Diagnostics {
   private const val MAX_LOG_BYTES = 512L * 1024L
   private const val MAX_READ_CHARS = 80 * 1024
+  // UTF-8 uses at most three bytes per UTF-16 code unit. Allow for a split code point.
+  private const val MAX_READ_BYTES = MAX_READ_CHARS * 3 + 4
   private const val LOG_FILE = "lasthavenplus.log"
 
   private val secretHeaderPattern =
     Regex("""(?im)(\b(?:authorization|cookie|set-cookie)\s*:\s*)[^\r\n]+""")
   private val secretPattern =
     Regex(
-      """(?i)((?:access[_-]?token|refresh[_-]?token|password|passwd|authorization|set-cookie|cookie|session(?:[_-]?id)?|token|secret|api[_-]?key)(\s*[=:]\s*))(?:bearer\s+)?([^&\s,;]+)"""
+      """(?i)((?:access[_-]?token|refresh[_-]?token|password|passwd|authorization|set-cookie|cookie|session(?:[_-]?id)?|token|secret|api[_-]?key)(\s*[=:]\s*))(?:bearer\s+)?([^&\s,;]+)""",
     )
   private val jsonSecretPattern =
     Regex(
-      """(?i)(["']?(?:access[_-]?token|refresh[_-]?token|password|passwd|authorization|set-cookie|cookie|session(?:[_-]?id)?|token|secret|api[_-]?key)["']\s*:\s*["']?)([^"'&\s,;}]+)"""
+      """(?i)(["']?(?:access[_-]?token|refresh[_-]?token|password|passwd|authorization|set-cookie|cookie|session(?:[_-]?id)?|token|secret|api[_-]?key)["']\s*:\s*["']?)([^"'&\s,;}]+)""",
     )
   private val querySecretPattern =
     Regex(
-      """(?i)([?&](?:access[_-]?token|refresh[_-]?token|token|session(?:[_-]?id)?|auth|api[_-]?key|key|code|password|secret)=)[^&#\s]+"""
+      """(?i)([?&](?:access[_-]?token|refresh[_-]?token|token|session(?:[_-]?id)?|auth|api[_-]?key|key|code|password|secret)=)[^&#\s]+""",
     )
 
   @Synchronized
@@ -66,15 +73,38 @@ object Diagnostics {
 
   @Synchronized
   internal fun readEntries(directory: File): String {
-    val previous = File(directory, "$LOG_FILE.1").takeIf { it.isFile }?.readText().orEmpty()
-    val current = File(directory, LOG_FILE).takeIf { it.isFile }?.readText().orEmpty()
+    val previous = readTail(File(directory, "$LOG_FILE.1"))
+    val current = readTail(File(directory, LOG_FILE))
     return (previous + current).takeLast(MAX_READ_CHARS).ifBlank { "No diagnostic entries yet." }
+  }
+
+  private fun readTail(file: File): String {
+    val path = file.toPath()
+    try {
+      if (!Files.readAttributes(path, BasicFileAttributes::class.java).isRegularFile) {
+        throw IOException("Invalid diagnostics log file.")
+      }
+      return Files.newByteChannel(path).use { channel ->
+        val size = channel.size()
+        val bytes = ByteBuffer.allocate(minOf(size, MAX_READ_BYTES.toLong()).toInt())
+        channel.position(size - bytes.capacity())
+        while (bytes.hasRemaining() && channel.read(bytes) > 0) {
+          // Fill the buffer, including when a read returns fewer bytes than requested.
+        }
+        bytes.array().decodeToString(endIndex = bytes.position())
+      }
+    } catch (_: NoSuchFileException) {
+      return ""
+    }
   }
 
   @Synchronized
   internal fun clearEntries(directory: File) {
-    File(directory, LOG_FILE).delete()
-    File(directory, "$LOG_FILE.1").delete()
+    try {
+      Files.deleteIfExists(File(directory, LOG_FILE).toPath())
+    } finally {
+      Files.deleteIfExists(File(directory, "$LOG_FILE.1").toPath())
+    }
   }
 
   internal fun sanitize(value: String): String =

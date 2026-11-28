@@ -19,7 +19,7 @@ class DiagnosticsTest {
       Diagnostics.sanitize(
         "Authorization: Bearer abc123\n" +
           "cookie=crumbs token=xyz access_token=hidden\n" +
-          "https://example.invalid/play?session_id=private&view=game"
+          "https://example.invalid/play?session_id=private&view=game",
       )
 
     assertTrue(sanitized.contains("Authorization: [REDACTED]"))
@@ -38,7 +38,7 @@ class DiagnosticsTest {
     val sanitized =
       Diagnostics.sanitize(
         "Cookie: session=first-secret; auth=second-secret\n" +
-          "Set-Cookie: refresh=third-secret; HttpOnly"
+          "Set-Cookie: refresh=third-secret; HttpOnly",
       )
 
     assertTrue(sanitized.contains("Cookie: [REDACTED]"))
@@ -66,7 +66,7 @@ class DiagnosticsTest {
         "api_key=variant-one api-key=variant-two apikey=variant-three " +
           "session=plain-session session-id=dashed-session sessionid=joined-session " +
           "session_id=underscored-session refresh_token=rt-secret " +
-          "token: Bearer prefixed-secret"
+          "token: Bearer prefixed-secret",
       )
 
     assertFalse(sanitized.contains("variant-"))
@@ -84,7 +84,7 @@ class DiagnosticsTest {
     val sanitized =
       Diagnostics.sanitize(
         "https://example.invalid/play?auth=query-secret&key=key-secret&code=code-secret" +
-          "&refresh_token=refresh-secret&password=password-secret&token=token-secret&view=game"
+          "&refresh_token=refresh-secret&password=password-secret&token=token-secret&view=game",
       )
 
     assertFalse(sanitized.contains("query-secret"))
@@ -190,6 +190,26 @@ class DiagnosticsTest {
 
     assertEquals(80 * 1024, content.length)
     assertTrue(content.endsWith("y"))
+  }
+
+  @Test
+  fun readEntriesReturnsPlaceholderForEmptyLogs() {
+    val directory = temporaryFolder.newFolder()
+    File(directory, "lasthavenplus.log").writeText("")
+    File(directory, "lasthavenplus.log.1").writeText("")
+
+    assertEquals("No diagnostic entries yet.", Diagnostics.readEntries(directory))
+  }
+
+  @Test
+  fun readEntriesKeepsTheNewestCharactersAcrossOversizedUtf8Logs() {
+    val directory = temporaryFolder.newFolder()
+    val previous = "界".repeat(512 * 1024) + "🙂".repeat(100)
+    val current = "newer\n"
+    File(directory, "lasthavenplus.log.1").writeText(previous)
+    File(directory, "lasthavenplus.log").writeText(current)
+
+    assertEquals((previous + current).takeLast(80 * 1024), Diagnostics.readEntries(directory))
   }
 
   @Test
