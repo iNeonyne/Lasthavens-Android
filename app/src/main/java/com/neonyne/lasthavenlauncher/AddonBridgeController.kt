@@ -55,7 +55,12 @@ internal class AddonBridgeController(
   @Volatile private var payloadErrorCode: String? = null
 
   /** Refreshes the validated payload before a new game navigation can request it. */
-  fun refreshSnapshot(onComplete: (Boolean) -> Unit = {}) {
+  fun refreshSnapshot(requireFresh: Boolean = false, onComplete: (Boolean) -> Unit = {}) {
+    if (requireFresh && snapshotInFlight) {
+      // An earlier read may have captured the library before the latest addon changes.
+      snapshotCallbacks += { refreshSnapshot(onComplete = onComplete) }
+      return
+    }
     snapshotCallbacks += onComplete
     if (snapshotInFlight) return
 

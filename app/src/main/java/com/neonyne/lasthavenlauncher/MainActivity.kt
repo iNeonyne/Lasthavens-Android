@@ -25,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -230,6 +231,8 @@ private fun LastHavenApp(
 
   val gameSessionController = remember { GameSessionController() }
   var addonReloadRequired by remember { mutableStateOf(false) }
+  var addonRevision by remember { mutableIntStateOf(0) }
+  var gameUrlRevision by remember { mutableIntStateOf(0) }
   val addonLibraryRepository =
     remember(context) { AddonLibraryRepository(File(context.filesDir, "addons")) }
   val addonBridgeExecutor = remember { Executors.newSingleThreadExecutor() }
@@ -247,6 +250,7 @@ private fun LastHavenApp(
   // The bridge reuses the process-scoped runtime and never creates a second GeckoSession.
   DisposableEffect(addonBridgeController, addonBridgeExecutor) {
     onDispose {
+      gameSessionController.cancelReload()
       addonBridgeController.teardown()
       addonBridgeExecutor.shutdown()
     }
@@ -262,22 +266,37 @@ private fun LastHavenApp(
   }
 
   val reloadGame: () -> Unit = {
-    addonBridgeController.ensureInstalled(context) { installed ->
-      if (installed) {
-        addonBridgeController.refreshSnapshot { refreshed ->
-          gameSessionController.reloadGame(context, gameUrl)
-          if (refreshed) addonReloadRequired = false
+    val requestedAddonRevision = addonRevision
+    gameSessionController.reloadGame(
+      context,
+      gameUrl,
+      prepareBridge = { onComplete ->
+        addonBridgeController.ensureInstalled(context) { installed ->
+          if (installed) {
+            addonBridgeController.refreshSnapshot(requireFresh = true) { refreshed ->
+              if (!refreshed)
+                Diagnostics.warn(context, "AddonBridge", "Reload snapshot unavailable")
+              onComplete(refreshed)
+            }
+          } else {
+            onComplete(false)
+          }
         }
-      } else {
-        gameSessionController.reloadGame(context, gameUrl)
-      }
+      },
+      onSessionReady = addonBridgeController::setGameSession,
+    ) { refreshed ->
+      if (refreshed && requestedAddonRevision == addonRevision) addonReloadRequired = false
     }
   }
 
   val loadGameUrl: (String) -> Unit = { selectedUrl ->
+    gameSessionController.cancelReload()
+    val selection = ++gameUrlRevision
     addonBridgeController.ensureInstalled(context) {
       addonBridgeController.refreshSnapshot {
-        gameSessionController.loadGameUrl(context, selectedUrl)
+        if (selection == gameUrlRevision && !gameSessionController.uiState.reloadInProgress) {
+          gameSessionController.loadGameUrl(context, selectedUrl)
+        }
       }
     }
   }
@@ -288,16 +307,6 @@ private fun LastHavenApp(
         addonBridgeController.setGameSession(session)
       }
       navigate(LauncherNavigationPolicy.startGame(navigation))
-    }
-  }
-
-  val restoreGame: () -> Unit = {
-    addonBridgeController.ensureInstalled(context) {
-      addonBridgeController.refreshSnapshot {
-        gameSessionController.restoreGame(context, gameUrl) { session ->
-          addonBridgeController.setGameSession(session)
-        }
-      }
     }
   }
 
@@ -391,7 +400,7 @@ private fun LastHavenApp(
             session = gameSessionController.session,
             presentation = gamePresentation,
             onRetry = reloadGame,
-            onRestore = restoreGame,
+            onRestore = reloadGame,
           )
           AnimatedVisibility(
             visible = navigation.menuVisible,
@@ -453,6 +462,7 @@ private fun LastHavenApp(
         AddonManagerHost(
           onBack = { libraryChanged ->
             if (libraryChanged) {
+              addonRevision += 1
               addonReloadRequired = true
               addonBridgeController.refreshSnapshot()
             }
