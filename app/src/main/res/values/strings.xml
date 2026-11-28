@@ -5,6 +5,7 @@
     <string name="addon_manager_local_addons">Local addons</string>
     <string name="addon_manager_back">Back</string>
     <string name="addon_manager_import_description">Import local WoW 3.3.5a addon ZIP files. New imports start disabled and stay on this device.</string>
+    <string tools:ignore="MissingTranslation" name="addon_manager_import_trust_warning">Addons run inside the game page with access to game data such as cookies and saved data. Only install addons from sources you trust.</string>
     <string name="addon_manager_runtime_unavailable">Addon runtime loading is not available yet. Imported files are stored locally only.</string>
     <string name="addon_manager_runtime_status" tools:ignore="MissingTranslation">Enabled state is saved locally. Saving an addon does not confirm that it is active in the game.</string>
     <string name="addon_manager_reload_required" tools:ignore="MissingTranslation">Changes are saved. Reload the game to apply addon changes.</string>
