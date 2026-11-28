@@ -49,7 +49,7 @@ Update this file when strategic priorities, sequence or release direction change
 <!-- ROADMAP-LIVE-START -->
 ## Live issue and PR inventory
 
-Generated: 2026-11-28T18:49:45+00:00
+Generated: 2026-11-28T18:55:27+00:00
 Source of truth: live GitHub Issues, pull requests and labels. This section is generated automatically; do not edit it manually.
 
 Every open issue is listed below, grouped by its current priority. Opening a newer issue or PR does not supersede an older one. Duplicates and supersession must be explicitly reviewed and linked in GitHub.
@@ -92,10 +92,6 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 - [#7 — P3 — Measure runtime performance and evaluate APK size improvements](https://github.com/iNeonyne/LastHavenPlus/issues/7) — enhancement, P3
 - [#187 — P3 — Verify direct AndroidX dependencies are necessary](https://github.com/iNeonyne/LastHavenPlus/issues/187) — dependencies, P3, maintenance
 - [#222 — P3 — Make the Android Back menu discoverable without persistent HUD](https://github.com/iNeonyne/LastHavenPlus/issues/222) — enhancement, P3
-
-#### Unprioritized
-
-- [#67 — Repository: reserve original project rights and complete third-party notices](https://github.com/iNeonyne/LastHavenPlus/issues/67) — documentation
 
 ### Open pull requests
 
@@ -141,6 +137,7 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 - [#84 — [COMPLETE] Use owner-approved recreated LastHavens-inspired launcher artwork](https://github.com/iNeonyne/LastHavenPlus/issues/84)
 - [#81 — Dependencies: refresh compatible AndroidX and compression libraries](https://github.com/iNeonyne/LastHavenPlus/issues/81)
 - [#70 — Docs: reconcile contributor/security guidance with beta workflow](https://github.com/iNeonyne/LastHavenPlus/issues/70)
+- [#67 — Repository: reserve original project rights and complete third-party notices](https://github.com/iNeonyne/LastHavenPlus/issues/67)
 - [#66 — Release engineering: verify independent clean APK rebuilds](https://github.com/iNeonyne/LastHavenPlus/issues/66)
 - [#65 — Testing: add a minimal ARM64 Android emulator smoke test](https://github.com/iNeonyne/LastHavenPlus/issues/65)
 - [#64 — Build: centralize dependency and plugin versions in a Gradle version catalog](https://github.com/iNeonyne/LastHavenPlus/issues/64)
