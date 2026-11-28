@@ -41,6 +41,9 @@ internal object UpdateManifestPolicy {
     }
   }
 
+  fun isPatchSizeEligible(patchSize: Long, apkSize: Long, maximumPatchBytes: Long): Boolean =
+    patchSize in 1..maximumPatchBytes && patchSize < apkSize
+
   fun isPatchCompatible(
     currentVersion: String,
     installedVersionCode: Long,
