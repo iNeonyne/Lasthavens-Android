@@ -88,7 +88,7 @@ fun AddonManagerScreen(
       }
       OutlinedButton(
         onClick = onBack,
-        enabled = !busy && (addon.enabled || !isBlocked),
+        enabled = !busy,
         modifier = Modifier.heightIn(min = DesignTokens.minTouchTarget),
       ) {
         Text(stringResource(R.string.addon_manager_back))
@@ -333,7 +333,7 @@ private fun AddonCard(
       Switch(
         checked = addon.enabled,
         onCheckedChange = onToggle,
-        enabled = !busy,
+        enabled = !busy && (addon.enabled || !isBlocked),
         modifier = Modifier.semantics { contentDescription = toggleDescription },
       )
       Box {
