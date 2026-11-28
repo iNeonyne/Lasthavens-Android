@@ -177,7 +177,37 @@ fun DiagnosticsScreen(
   context: Context,
   onBack: () -> Unit,
 ) {
-  var content by remember { mutableStateOf(Diagnostics.read(context)) }
+  val log = remember(context.applicationContext) { DiagnosticsLog(context.applicationContext) }
+  var state by
+    remember(log) {
+      mutableStateOf<DiagnosticsState>(DiagnosticsState.Loading(DiagnosticsAction.READ))
+    }
+  val currentState = state
+
+  LaunchedEffect(log, currentState) {
+    if (currentState is DiagnosticsState.Loading) state = log.execute(currentState.action)
+  }
+
+  val busy = currentState is DiagnosticsState.Loading
+  val displayText =
+    when (currentState) {
+      is DiagnosticsState.Loading ->
+        stringResource(
+          when (currentState.action) {
+            DiagnosticsAction.READ -> R.string.diagnostics_loading
+            DiagnosticsAction.CLEAR -> R.string.diagnostics_clearing
+          },
+        )
+      is DiagnosticsState.Loaded -> currentState.content
+      DiagnosticsState.Cleared -> stringResource(R.string.diagnostics_cleared)
+      is DiagnosticsState.Failed ->
+        stringResource(
+          when (currentState.action) {
+            DiagnosticsAction.READ -> R.string.diagnostics_read_failed
+            DiagnosticsAction.CLEAR -> R.string.diagnostics_clear_failed
+          },
+        )
+    }
   SettingsPageFrame(title = stringResource(R.string.diagnostics_title), onBack = onBack) {
     PageSection(title = stringResource(R.string.diagnostics_log_section)) {
       Text(
@@ -191,28 +221,39 @@ fun DiagnosticsScreen(
         shape = MaterialTheme.shapes.medium,
       ) {
         Text(
-          content,
+          displayText,
           modifier = Modifier.padding(DesignTokens.spaceSection),
-          color = DesignTokens.textBody,
+          color =
+            if (currentState is DiagnosticsState.Failed) MaterialTheme.colorScheme.error
+            else DesignTokens.textBody,
           style = MaterialTheme.typography.bodySmall,
         )
       }
-      val clearedMessage = stringResource(R.string.diagnostics_cleared)
       Row(horizontalArrangement = Arrangement.spacedBy(DesignTokens.spaceSmall)) {
-        OutlinedButton(onClick = { content = Diagnostics.read(context) }) {
+        OutlinedButton(
+          onClick = {
+            if (state !is DiagnosticsState.Loading) {
+              state = DiagnosticsState.Loading(DiagnosticsAction.READ)
+            }
+          },
+          enabled = !busy,
+        ) {
           Text(stringResource(R.string.action_refresh))
         }
         OutlinedButton(
           onClick = {
-            Diagnostics.clear(context)
-            content = clearedMessage
+            if (state !is DiagnosticsState.Loading) {
+              state = DiagnosticsState.Loading(DiagnosticsAction.CLEAR)
+            }
           },
+          enabled = !busy,
         ) {
           Text(stringResource(R.string.diagnostics_clear))
         }
       }
       Button(
         onClick = {
+          val content = (state as? DiagnosticsState.Loaded)?.content ?: return@Button
           val share =
             Intent(Intent.ACTION_SEND).apply {
               type = "text/plain"
@@ -224,6 +265,7 @@ fun DiagnosticsScreen(
           )
         },
         modifier = Modifier.fillMaxWidth(),
+        enabled = currentState is DiagnosticsState.Loaded,
       ) {
         Text(stringResource(R.string.diagnostics_share))
       }

@@ -250,6 +250,26 @@ class DiagnosticsTest {
   }
 
   @Test
+  fun readEntriesReturnsPlaceholderForEmptyLogs() {
+    val directory = temporaryFolder.newFolder()
+    File(directory, "lasthavenplus.log").writeText("")
+    File(directory, "lasthavenplus.log.1").writeText("")
+
+    assertEquals("No diagnostic entries yet.", Diagnostics.readEntries(directory))
+  }
+
+  @Test
+  fun readEntriesKeepsTheNewestCharactersAcrossOversizedUtf8Logs() {
+    val directory = temporaryFolder.newFolder()
+    val previous = "界".repeat(512 * 1024) + "🙂".repeat(100)
+    val current = "newer\n"
+    File(directory, "lasthavenplus.log.1").writeText(previous)
+    File(directory, "lasthavenplus.log").writeText(current)
+
+    assertEquals((previous + current).takeLast(80 * 1024), Diagnostics.readEntries(directory))
+  }
+
+  @Test
   fun readEntriesReturnsRotatedLogBeforeCurrentLog() {
     val directory = temporaryFolder.newFolder("read-order")
     File(directory, "lasthavenplus.log.1").writeText("older\n")

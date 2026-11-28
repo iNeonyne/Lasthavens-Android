@@ -141,6 +141,10 @@
     <string tools:ignore="MissingTranslation" name="diagnostics_title">App diagnostics</string>
     <string tools:ignore="MissingTranslation" name="diagnostics_log_section">Local diagnostic log</string>
     <string tools:ignore="MissingTranslation" name="diagnostics_privacy_hint">Logs are stored on this device. Review them before sharing.</string>
+    <string tools:ignore="MissingTranslation" name="diagnostics_loading">Loading diagnostic logs…</string>
+    <string tools:ignore="MissingTranslation" name="diagnostics_clearing">Clearing diagnostic logs…</string>
+    <string tools:ignore="MissingTranslation" name="diagnostics_read_failed">Couldn’t read diagnostic logs.</string>
+    <string tools:ignore="MissingTranslation" name="diagnostics_clear_failed">Couldn’t clear all diagnostic logs.</string>
     <string tools:ignore="MissingTranslation" name="diagnostics_cleared">Logs cleared.</string>
     <string tools:ignore="MissingTranslation" name="diagnostics_clear">Clear logs</string>
     <string tools:ignore="MissingTranslation" name="diagnostics_share">Share logs</string>
