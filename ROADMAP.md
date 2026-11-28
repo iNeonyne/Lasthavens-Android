@@ -49,7 +49,7 @@ Update this file when strategic priorities, sequence or release direction change
 <!-- ROADMAP-LIVE-START -->
 ## Live issue and PR inventory
 
-Generated: 2026-11-28T19:42:01+00:00
+Generated: 2026-11-28T19:43:21+00:00
 Source of truth: live GitHub Issues, pull requests and labels. This section is generated automatically; do not edit it manually.
 
 Every open issue is listed below, grouped by its current priority. Opening a newer issue or PR does not supersede an older one. Duplicates and supersession must be explicitly reviewed and linked in GitHub.
@@ -84,7 +84,6 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 - [#234 — P2 — Apply small updater, bridge protocol and archive safety cleanups](https://github.com/iNeonyne/LastHavenPlus/issues/234) — P2, maintenance
 - [#235 — P2 — Preserve explicit return destinations when opening Diagnostics](https://github.com/iNeonyne/LastHavenPlus/issues/235) — bug, P2
 - [#243 — P2 — Include version and channel in published APK asset names](https://github.com/iNeonyne/LastHavenPlus/issues/243) — enhancement, P2
-- [#263 — P2 — Bound remote release notes before displaying them](https://github.com/iNeonyne/LastHavenPlus/issues/263) — bug, P2, coderabbit-fix
 - [#264 — P2 — Avoid inefficient delta downloads and preflight updater storage](https://github.com/iNeonyne/LastHavenPlus/issues/264) — P2, maintenance, coderabbit-fix
 
 #### P3
@@ -96,11 +95,11 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 ### Open pull requests
 
 - [#250 — ui: start landscape launcher redesign and POCO smoke coverage (#248)](https://github.com/iNeonyne/LastHavenPlus/pull/250) (beta <- chaty/native-landscape-ui-248)
-- [#265 — fix: bound release notes shown in settings](https://github.com/iNeonyne/LastHavenPlus/pull/265) (beta <- coderabbit/bound-release-notes-263)
 - [#266 — fix: preflight updater storage and skip oversized deltas](https://github.com/iNeonyne/LastHavenPlus/pull/266) (beta <- coderabbit/issue-264-updater-storage)
 
 ### Recently completed (last 30 days)
 
+- [#263 — P2 — Bound remote release notes before displaying them](https://github.com/iNeonyne/LastHavenPlus/issues/263)
 - [#245 — P0 — Diagnose and implement actual enabled-addon script injection](https://github.com/iNeonyne/LastHavenPlus/issues/245)
 - [#244 — P1 — Make the game reload action reliably navigate and confirm completion](https://github.com/iNeonyne/LastHavenPlus/issues/244)
 - [#233 — P2 — Document the security trust model for installed addons](https://github.com/iNeonyne/LastHavenPlus/issues/233)
