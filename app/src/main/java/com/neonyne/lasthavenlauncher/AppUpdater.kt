@@ -116,7 +116,7 @@ object AppUpdater {
                   JSONObject(
                     releaseConnection.inputStream.use {
                       UpdateNetworkPolicy.readLimitedText(it, MAX_RELEASE_JSON_BYTES)
-                    }
+                    },
                   )
                 }
               } finally {
@@ -162,7 +162,7 @@ object AppUpdater {
                     JSONObject(
                       manifestConnection.inputStream.use {
                         UpdateNetworkPolicy.readLimitedText(it, MAX_MANIFEST_JSON_BYTES)
-                      }
+                      },
                     )
                   } finally {
                     manifestConnection.disconnect()
@@ -199,7 +199,7 @@ object AppUpdater {
 
               val patch =
                 UpdateManifestPolicy.optionalPatch(
-                  onInvalid = { message -> Diagnostics.warn(appContext, "Updater", message) }
+                  onInvalid = { message -> Diagnostics.warn(appContext, "Updater", message) },
                 ) {
                   if (manifest.isNull("patch")) return@optionalPatch null
                   val patchJson = manifest.getJSONObject("patch")
@@ -252,7 +252,7 @@ object AppUpdater {
                   sha256 = fullSha,
                   size = targetSize,
                   patch = patch,
-                )
+                ),
               )
             }
           }
@@ -474,7 +474,7 @@ object AppUpdater {
       "Installed app does not use the configured LastHaven release key"
     }
     check(
-      updateFingerprints == installedFingerprints && RELEASE_CERT_SHA256 in updateFingerprints
+      updateFingerprints == installedFingerprints && RELEASE_CERT_SHA256 in updateFingerprints,
     ) {
       "Update APK was not signed with the installed LastHaven release key"
     }

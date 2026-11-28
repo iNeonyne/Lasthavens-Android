@@ -76,7 +76,7 @@ class UpdateManifestPolicyTest {
     org.junit.Assert.assertNull(patch)
     assertEquals(
       listOf(
-        "Differential patch metadata rejected (inconsistent release metadata). Using the full APK."
+        "Differential patch metadata rejected (inconsistent release metadata). Using the full APK.",
       ),
       messages,
     )
