@@ -21,6 +21,7 @@
   const XHR_CORE_KEY = "__LHAddonXhrOverlayCore";
   const BRIDGE_KEY = "__LASTHAVEN_ADDON_BRIDGE__";
   const GAME_HOST = "lasthavens.com";
+  const GAME_HOSTS = new Set([GAME_HOST, "alt.lasthavens.com"]);
   const WORKER_NAME = "em-pthread";
   const BOOT_KEY = "__lhBoot";
   const READY_KEY = "__lhReady";
@@ -39,6 +40,9 @@
   const MAX_INTERCEPTED_WORKERS = 8;
   const BOOT_TIMEOUT_MS = 20000;
   const MAX_WORKER_FILE_BYTES = 8 * 1024 * 1024;
+  const MAX_MANIFEST_ENTRIES = 8192;
+  const MAX_MANIFEST_TEXT_BYTES = 2 * 1024 * 1024;
+  const MAX_RUNTIME_BUNDLE_BYTES = 16 * 1024 * 1024;
   const MAX_INFLIGHT_WORKER_REQUESTS = 4;
   const MAX_INDEX_FILE_BYTES = 2 * 1024 * 1024;
   const MAX_INDEX_LINES = 65536;
@@ -113,6 +117,177 @@
     return filePath.split("/").every((part) => part.length > 0 && part !== "." && part !== "..");
   }
 
+  function base64ByteLength(encoded) {
+    if (typeof encoded !== "string" || encoded.length % 4 !== 0 ||
+        !/^[A-Za-z0-9+/]*={0,2}$/.test(encoded)) {
+      return null;
+    }
+    const padding = encoded.endsWith("==") ? 2 : encoded.endsWith("=") ? 1 : 0;
+    const byteLength = (encoded.length / 4) * 3 - padding;
+    return Number.isSafeInteger(byteLength) && byteLength >= 0 &&
+      byteLength <= MAX_WORKER_FILE_BYTES ? byteLength : null;
+  }
+
+  function buildManifestEntries(payload, manifestText) {
+    const reject = (stage) => ({ ok: false, stage: stage, enabledFolders: [], entries: [] });
+    if (!payload || !Array.isArray(payload.addons) || payload.addons.length > 128) {
+      return reject("payload");
+    }
+    const manifestLower = typeof manifestText === "string" ? manifestText.toLowerCase() : "";
+    const enabledFolders = [];
+    const entries = [];
+    const seenFolders = new Set();
+    const seenPaths = new Set();
+    let totalFileBytes = 0;
+    let manifestBytes = 0;
+    for (let i = 0; i < payload.addons.length; i += 1) {
+      const addon = payload.addons[i];
+      const folder = addon && addon.folder;
+      if (typeof folder !== "string" || !FOLDER_PATTERN.test(folder) ||
+          folder.toLowerCase().startsWith("blizzard_") || seenFolders.has(folder.toLowerCase())) {
+        return reject("folder");
+      }
+      seenFolders.add(folder.toLowerCase());
+      if (manifestLower.includes((ADDON_PREFIX + folder + "/").toLowerCase())) {
+        continue;
+      }
+      if (!addon.files || typeof addon.files !== "object" || Array.isArray(addon.files)) {
+        return reject("files");
+      }
+      const paths = Object.keys(addon.files);
+      if (entries.length + paths.length > MAX_MANIFEST_ENTRIES) {
+        return reject("entry-limit");
+      }
+      const addonEntries = [];
+      for (let p = 0; p < paths.length; p += 1) {
+        const path = ADDON_PREFIX + folder + "/" + paths[p];
+        if (!isSafeAddonPath(path) || seenPaths.has(path.toLowerCase())) {
+          return reject("path");
+        }
+        const sizeBytes = base64ByteLength(addon.files[paths[p]]);
+        if (sizeBytes === null) {
+          return reject("file-data");
+        }
+        totalFileBytes += sizeBytes;
+        if (!Number.isSafeInteger(totalFileBytes) || totalFileBytes > MAX_RUNTIME_BUNDLE_BYTES) {
+          return reject("bundle-size");
+        }
+        manifestBytes += String(sizeBytes).length + 1 + path.length + 1;
+        if (manifestBytes > MAX_MANIFEST_TEXT_BYTES) {
+          return reject("manifest-size");
+        }
+        seenPaths.add(path.toLowerCase());
+        addonEntries.push({ path: path, sizeBytes: sizeBytes });
+      }
+      if (addonEntries.length > 0) {
+        enabledFolders.push(folder);
+        entries.push(...addonEntries);
+      }
+    }
+    return { ok: true, stage: null, enabledFolders: enabledFolders, entries: entries };
+  }
+
+  function validateManifestEntries(entries, enabledFolders) {
+    if (!Array.isArray(entries) || entries.length > MAX_MANIFEST_ENTRIES ||
+        !Array.isArray(enabledFolders) || enabledFolders.length > 128) {
+      return { ok: false, entries: [] };
+    }
+    const enabled = new Set(enabledFolders.map((folder) => String(folder).toLowerCase()));
+    const seen = new Set();
+    const validated = [];
+    let totalBytes = 0;
+    let textBytes = 0;
+    for (let i = 0; i < entries.length; i += 1) {
+      const entry = entries[i];
+      if (!entry || typeof entry !== "object" || !isSafeAddonPath(entry.path) ||
+          !Number.isSafeInteger(entry.sizeBytes) || entry.sizeBytes < 0 ||
+          entry.sizeBytes > MAX_WORKER_FILE_BYTES) {
+        return { ok: false, entries: [] };
+      }
+      const folder = entry.path.slice(ADDON_PREFIX.length).split("/")[0];
+      if (!enabled.has(folder.toLowerCase()) || seen.has(entry.path.toLowerCase())) {
+        return { ok: false, entries: [] };
+      }
+      totalBytes += entry.sizeBytes;
+      textBytes += String(entry.sizeBytes).length + 1 + entry.path.length + 1;
+      if (totalBytes > MAX_RUNTIME_BUNDLE_BYTES || textBytes > MAX_MANIFEST_TEXT_BYTES) {
+        return { ok: false, entries: [] };
+      }
+      seen.add(entry.path.toLowerCase());
+      validated.push(Object.freeze({ path: entry.path, sizeBytes: entry.sizeBytes }));
+    }
+    return { ok: true, entries: Object.freeze(validated) };
+  }
+
+  function appendAddonManifest(text, entries) {
+    if (typeof text !== "string" || !Array.isArray(entries) || entries.length === 0) {
+      return text;
+    }
+    const lower = text.toLowerCase();
+    const conflictingFolders = new Set();
+    for (let i = 0; i < entries.length; i += 1) {
+      const folder = entries[i].path.slice(ADDON_PREFIX.length).split("/")[0];
+      if (lower.includes((ADDON_PREFIX + folder + "/").toLowerCase())) {
+        conflictingFolders.add(folder.toLowerCase());
+      }
+    }
+    const additions = [];
+    for (let i = 0; i < entries.length; i += 1) {
+      const entry = entries[i];
+      const folder = entry.path.slice(ADDON_PREFIX.length).split("/")[0];
+      if (!conflictingFolders.has(folder.toLowerCase())) {
+        additions.push(String(entry.sizeBytes) + "\t" + entry.path);
+      }
+    }
+    if (additions.length === 0) {
+      return text;
+    }
+    return String(text).replace(/\s*$/, "") + "\n" + additions.join("\n") + "\n";
+  }
+
+  function installAddonManifestFetch(entries) {
+    const nativeFetch = self.fetch;
+    if (typeof nativeFetch !== "function" || typeof self.Response !== "function" ||
+        typeof self.Headers !== "function" || typeof self.URL !== "function") {
+      return false;
+    }
+    self.fetch = function (input, init) {
+      let url;
+      let method = "GET";
+      try {
+        const isRequest = typeof self.Request === "function" && input instanceof self.Request;
+        url = new self.URL(isRequest ? input.url : String(input), originalUrl);
+        method = String((init && init.method) || (isRequest && input.method) || "GET").toUpperCase();
+      } catch (error) {
+        return nativeFetch.call(self, input, init);
+      }
+      if (method !== "GET" || url.origin !== self.location.origin ||
+          url.pathname !== "/game-manifest.txt" || url.search !== "" || url.hash !== "") {
+        return nativeFetch.call(self, input, init);
+      }
+      return nativeFetch.call(self, input, init).then(function (response) {
+        if (!response || !response.ok) {
+          return response;
+        }
+        return response.clone().text().then(function (text) {
+          const patched = appendAddonManifest(text, entries);
+          if (patched === text) {
+            return response;
+          }
+          const headers = new self.Headers(response.headers);
+          headers.delete("content-length");
+          headers.delete("content-encoding");
+          return new self.Response(patched, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: headers
+          });
+        });
+      });
+    };
+    return true;
+  }
+
   function canonicalUnsigned(text) {
     if (typeof text !== "string" || text.length === 0 || text.length > 15 || !UNSIGNED_PATTERN.test(text)) {
       return null;
@@ -143,8 +318,8 @@
       } catch (error) {
         return false;
       }
-      if (parsed.protocol !== "https:" || parsed.hostname !== GAME_HOST ||
-          parsed.username !== "" || parsed.password !== "" ||
+      if (parsed.protocol !== "https:" || !GAME_HOSTS.has(parsed.hostname) ||
+          parsed.username !== "" || parsed.password !== "" || parsed.port !== "" ||
           parsed.search !== "" || parsed.hash !== "") {
         return false;
       }
@@ -157,7 +332,8 @@
     if (!config || typeof config !== "object" || typeof config.baseHref !== "string") {
       return { ok: false, reason: "config" };
     }
-    if (config.allowlist === undefined) {
+    const useRuntimeAllowlist = config.allowlist === undefined;
+    if (useRuntimeAllowlist) {
       config = { baseHref: config.baseHref, allowlist: activeWorkerUrlAllowlist };
     }
     if (options !== undefined && options !== null) {
@@ -180,15 +356,18 @@
       return { ok: false, reason: "url-chars" };
     }
     let parsed;
+    let base;
     try {
-      parsed = new URL(rawUrl, config.baseHref);
+      base = new URL(config.baseHref);
+      parsed = new URL(rawUrl, base.href);
     } catch (error) {
       return { ok: false, reason: "url-parse" };
     }
     if (parsed.protocol !== "https:") {
       return { ok: false, reason: "url-scheme" };
     }
-    if (parsed.hostname !== GAME_HOST || parsed.username !== "" || parsed.password !== "") {
+    if (!GAME_HOSTS.has(parsed.hostname) || parsed.origin !== base.origin ||
+        parsed.username !== "" || parsed.password !== "" || parsed.port !== "") {
       return { ok: false, reason: "url-origin" };
     }
     if (parsed.hash !== "" || parsed.search !== "") {
@@ -202,10 +381,17 @@
       return { ok: false, reason: "url-path" };
     }
     const allowlist = Array.isArray(config.allowlist) ? config.allowlist : [];
-    if (allowlist.length === 0) {
-      return { ok: false, reason: "allowlist-empty" };
-    }
     const href = parsed.href;
+    if (allowlist.length === 0) {
+      if (!useRuntimeAllowlist) {
+        return { ok: false, reason: "allowlist-empty" };
+      }
+      // GeckoView knows the game worker URL only when the game constructs its Worker. Pin the
+      // first validated, same-origin em-pthread URL for this document; all later candidates must
+      // match it exactly. This is narrower than a broad pthread-name interception rule.
+      activeWorkerUrlAllowlist = Object.freeze([href]);
+      return { ok: true, reason: "learned", href: href, pathname: pathname };
+    }
     for (const entry of allowlist) {
       if (typeof entry === "string" && entry === href) {
         return { ok: true, reason: "matched", href: href, pathname: pathname };
@@ -455,11 +641,22 @@
     maskReadSpan,
     maskWebVfsStoreIo,
     wrapAssignWasmImports,
-    base64ToBytes
+    base64ToBytes,
+    validateManifestEntries,
+    appendAddonManifest,
+    installAddonManifestFetch
   ];
 
   function buildBootstrapSource(href) {
-    if (typeof href !== "string" || href.indexOf("https://" + GAME_HOST + "/") !== 0) {
+    let parsed;
+    try {
+      parsed = new URL(href);
+    } catch (error) {
+      throw new Error("lh-worker-bootstrap-url");
+    }
+    if (parsed.protocol !== "https:" || !GAME_HOSTS.has(parsed.hostname) ||
+        parsed.username !== "" || parsed.password !== "" || parsed.port !== "" ||
+        parsed.search !== "" || parsed.hash !== "") {
       throw new Error("lh-worker-bootstrap-url");
     }
     const shared = SHARED_WORKER_FUNCTIONS
@@ -476,6 +673,7 @@
       "var MASK_SIGNAL = " + JSON.stringify(MASK_SIGNAL) + ";\n" +
       "var MASK_DIAGNOSTIC_SIGNAL = " + JSON.stringify(MASK_DIAGNOSTIC_SIGNAL) + ";\n" +
       "var ADDON_PREFIX = " + JSON.stringify(ADDON_PREFIX) + ";\n" +
+      "var GAME_HOSTS = new Set(" + JSON.stringify(Array.from(GAME_HOSTS)) + ");\n" +
       "var FOLDER_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;\n" +
       "var UNSIGNED_PATTERN = /^[0-9]+$/;\n" +
       "var MAX_INDEX_FIELD_CHARS = " + MAX_INDEX_FIELD_CHARS + ";\n" +
@@ -486,6 +684,9 @@
       "var MAX_INFLIGHT = " + MAX_INFLIGHT_WORKER_REQUESTS + ";\n" +
       "var MAX_FILE_BYTES = " + MAX_WORKER_FILE_BYTES + ";\n" +
       "var MAX_WORKER_FILE_BYTES = " + MAX_WORKER_FILE_BYTES + ";\n" +
+      "var MAX_MANIFEST_ENTRIES = " + MAX_MANIFEST_ENTRIES + ";\n" +
+      "var MAX_MANIFEST_TEXT_BYTES = " + MAX_MANIFEST_TEXT_BYTES + ";\n" +
+      "var MAX_RUNTIME_BUNDLE_BYTES = " + MAX_RUNTIME_BUNDLE_BYTES + ";\n" +
       "var MAX_PATH_CHARS = " + MAX_PATH_CHARS + ";\n" +
       "var MAX_INDEX_FILE_BYTES = " + MAX_INDEX_FILE_BYTES + ";\n" +
       "var MAX_INDEX_LINES = " + MAX_INDEX_LINES + ";\n" +
@@ -495,6 +696,7 @@
       "var booted = false;\n" +
       "var failed = false;\n" +
       "var maskRecords = null;\n" +
+      "var manifestEntries = [];\n" +
       "var maskDiagnosticReported = false;\n" +
       "function reportMaskDiagnostic(stage) {\n" +
       "  if (maskDiagnosticReported) { return; }\n" +
@@ -527,9 +729,7 @@
       "    inflightCount -= 1;\n" +
       "    respond(entry, data);\n" +
       "  };\n" +
-      "  function baseHref() {\n" +
-      "    try { return self.location.href; } catch (error) { return originalUrl; }\n" +
-      "  }\n" +
+      "  function baseHref() { return originalUrl; }\n" +
       "  function respond(entry, response) {\n" +
       "    entry.state.status = response.status;\n" +
       "    entry.state.statusText = response.statusText;\n" +
@@ -563,6 +763,7 @@
       "      method: 'GET',\n" +
       "      url: '',\n" +
       "      intercepted: false,\n" +
+      "      manifestRequest: false,\n" +
       "      native: null,\n" +
       "      readyState: 0,\n" +
       "      status: 0,\n" +
@@ -582,9 +783,13 @@
       "    state.url = String(url);\n" +
       "    state.async = async !== false;\n" +
       "    state.intercepted = false;\n" +
+      "    state.manifestRequest = false;\n" +
       "    var parsed = null;\n" +
       "    try { parsed = new URL(state.url, baseHref()); } catch (error) { parsed = null; }\n" +
-      "    var sameOrigin = parsed && parsed.protocol === 'https:' && parsed.hostname === '" + GAME_HOST + "';\n" +
+      "    var baseOrigin = '';\n" +
+      "    try { baseOrigin = new URL(baseHref()).origin; } catch (error) {}\n" +
+      "    var sameOrigin = parsed && parsed.protocol === 'https:' && GAME_HOSTS.has(parsed.hostname) && parsed.origin === baseOrigin;\n" +
+      "    state.manifestRequest = Boolean(sameOrigin && state.method === 'GET' && parsed.pathname === '/game-manifest.txt' && parsed.search === '' && parsed.hash === '');\n" +
       "    if (sameOrigin && state.method !== 'GET' && state.method !== 'HEAD') {\n" +
       "      var isAddonRoute = false;\n" +
       "      try { isAddonRoute = decodeURIComponent(parsed.pathname).indexOf(ADDON_PREFIX) !== -1; } catch (error) { isAddonRoute = false; }\n" +
@@ -629,7 +834,8 @@
       "      type: REQUEST_SIGNAL,\n" +
       "      requestId: requestId,\n" +
       "      method: state.method,\n" +
-      "      path: pathOnly\n" +
+      "      path: pathOnly,\n" +
+      "      origin: (function () { try { return new URL(baseHref()).origin; } catch (error) { return ''; } })()\n" +
       "    });\n" +
       "  };\n" +
       "  prototype.abort = function () {\n" +
@@ -686,7 +892,11 @@
       "  Object.defineProperty(prototype, 'responseText', {\n" +
       "    get: function () {\n" +
       "      var state = this.__lhState;\n" +
-      "      if (state.native) { return state.native.responseText; }\n" +
+      "      if (state.native) {\n" +
+      "        var nativeText = state.native.responseText;\n" +
+      "        if (state.manifestRequest && state.native.readyState === 4 && state.native.status === 200) { return appendAddonManifest(nativeText, manifestEntries); }\n" +
+      "        return nativeText;\n" +
+      "      }\n" +
       "      var text = '';\n" +
       "      for (var i = 0; i < state.bodyBytes.length; i += 1) { text += String.fromCharCode(state.bodyBytes[i]); }\n" +
       "      return text;\n" +
@@ -695,7 +905,16 @@
       "  Object.defineProperty(prototype, 'response', {\n" +
       "    get: function () {\n" +
       "      var state = this.__lhState;\n" +
-      "      if (state.native) { return state.native.response; }\n" +
+      "      if (state.native) {\n" +
+      "        if (state.manifestRequest && state.native.readyState === 4 && state.native.status === 200) {\n" +
+      "          if (state.responseType === '' || state.responseType === 'text') { return appendAddonManifest(state.native.responseText, manifestEntries); }\n" +
+      "          if (state.responseType === 'arraybuffer' && state.native.response) {\n" +
+      "            var sourceText = new TextDecoder().decode(state.native.response);\n" +
+      "            return new TextEncoder().encode(appendAddonManifest(sourceText, manifestEntries)).buffer;\n" +
+      "          }\n" +
+      "        }\n" +
+      "        return state.native.response;\n" +
+      "      }\n" +
       "      if (state.responseType === 'arraybuffer') { return state.bodyBytes.buffer; }\n" +
       "      return this.responseText;\n" +
       "    }\n" +
@@ -727,6 +946,9 @@
       "    var validatedMasks = validateMaskRecords(data.maskBuffer, data.indexSize, data.enabledFolders);\n" +
       "    if (validatedMasks.ok) { maskRecords = validatedMasks.records; }\n" +
       "    else { reportMaskDiagnostic('mask-records-invalid'); }\n" +
+      "    var validatedManifest = validateManifestEntries(data.manifestEntries || [], data.enabledFolders || []);\n" +
+      "    if (validatedManifest.ok) { manifestEntries = validatedManifest.entries; }\n" +
+      "    else { reportMaskDiagnostic('manifest-entries-invalid'); }\n" +
       "    if (typeof data.maskError === 'string' && data.maskError.length <= 32) { reportMaskDiagnostic(data.maskError); }\n" +
       "    port.addEventListener('message', function (event) {\n" +
       "      var data = event.data;\n" +
@@ -743,6 +965,7 @@
       "    });\n" +
       "    try { if (typeof port.start === 'function') { port.start(); } } catch (error) {}\n" +
       "    installAddonXhrForwarder(port);\n" +
+      "    try { installAddonManifestFetch(manifestEntries); } catch (error) { reportMaskDiagnostic('manifest-fetch-install'); }\n" +
       "    try { self.importScripts(originalUrl); } catch (error) { reportFailure('import-scripts'); return; }\n" +
       "    try { port.postMessage({ __lhReady: true }); } catch (error) { reportFailure('ready-signal'); return; }\n" +
       "    try { wrapAssignWasmImports(self, function () { return maskRecords; }); } catch (error) {}\n" +
@@ -787,7 +1010,7 @@
     } catch (error) {
       return { kind: "notFound" };
     }
-    if (url.protocol !== "https:" || url.hostname !== GAME_HOST || url.search !== "" || url.hash !== "") {
+    if (url.protocol !== "https:" || !GAME_HOSTS.has(url.hostname) || url.search !== "" || url.hash !== "") {
       return { kind: "notFound" };
     }
     let raw = null;
@@ -840,10 +1063,23 @@
     if (rawPath.length === 0 || rawPath.length > MAX_URL_CHARS) {
       return notFoundWorkerResponse();
     }
-    const href = "https://" + GAME_HOST + (rawPath.startsWith("/") ? rawPath : "/" + rawPath);
+    let origin;
+    try {
+      const expectedOrigin = typeof request.origin === "string" ? request.origin : "https://" + GAME_HOST;
+      const parsedOrigin = new URL(expectedOrigin);
+      if (parsedOrigin.protocol !== "https:" || !GAME_HOSTS.has(parsedOrigin.hostname) ||
+          parsedOrigin.port !== "" || parsedOrigin.username !== "" || parsedOrigin.password !== "" ||
+          parsedOrigin.origin !== expectedOrigin) {
+        return notFoundWorkerResponse();
+      }
+      origin = parsedOrigin.origin;
+    } catch (error) {
+      return notFoundWorkerResponse();
+    }
+    const href = origin + (rawPath.startsWith("/") ? rawPath : "/" + rawPath);
     let route;
     if (xhrCore && typeof xhrCore.resolveRoute === "function") {
-      route = xhrCore.resolveRoute(method, href, "https://" + GAME_HOST + "/play");
+      route = xhrCore.resolveRoute(method, href, origin + "/play");
     } else {
       route = localResolveRoute(method, href);
     }
@@ -929,6 +1165,9 @@
     base64ToBytes: base64ToBytes,
     resolveBundleEntry: resolveBundleEntry,
     serveWorkerFileRequest: serveWorkerFileRequest,
+    buildManifestEntries: buildManifestEntries,
+    validateManifestEntries: validateManifestEntries,
+    appendAddonManifest: appendAddonManifest,
     localResolveRoute: localResolveRoute,
     contentTypeForWorkerPath: contentTypeForWorkerPath
   });
@@ -943,7 +1182,7 @@
     return;
   }
   const location = global.location;
-  if (!location || typeof location.href !== "string" || location.hostname !== GAME_HOST) {
+  if (!location || typeof location.href !== "string" || !GAME_HOSTS.has(location.hostname)) {
     return;
   }
 
@@ -995,52 +1234,90 @@
   let maskBootstrapCache = null;
 
   function readMaskBootstrapData(global, core) {
-    const failed = (stage, enabledFolders) => ({ maskBuffer: new ArrayBuffer(0), indexSize: 0, enabledFolders: enabledFolders || [], error: stage });
+    const failed = (stage, enabledFolders, manifestEntries) => ({
+      maskBuffer: new ArrayBuffer(0),
+      indexSize: 0,
+      enabledFolders: enabledFolders || [],
+      manifestEntries: manifestEntries || [],
+      error: stage
+    });
     let payload = null;
     try {
       const bridge = global[BRIDGE_KEY];
       payload = bridge && typeof bridge.getBundle === "function" ? bridge.getBundle() : null;
-    } catch (error) { return failed("bundle-unavailable"); }
-    if (!payload || !Array.isArray(payload.addons) || payload.addons.length > 128) return failed("bundle-unavailable");
-    const enabledFolders = [];
-    const seen = new Set();
-    for (let i = 0; i < payload.addons.length; i += 1) {
-      const folder = payload.addons[i] && payload.addons[i].folder;
-      if (typeof folder !== "string" || !FOLDER_PATTERN.test(folder) ||
-          folder.toLowerCase().startsWith("blizzard_") || seen.has(folder.toLowerCase())) return failed("bundle-folders");
-      seen.add(folder.toLowerCase());
-      enabledFolders.push(folder);
+    } catch (error) {
+      return failed("bundle-unavailable");
     }
-    if (enabledFolders.length === 0) return { maskBuffer: new ArrayBuffer(0), indexSize: 0, enabledFolders: [], error: null };
-    if (!global.navigator || !global.navigator.storage || typeof global.navigator.storage.getDirectory !== "function") {
-      return failed("opfs-unavailable", enabledFolders);
+    if (!payload || !Array.isArray(payload.addons) || payload.addons.length > 128) {
+      return failed("bundle-unavailable");
     }
-    return Promise.resolve()
-      .then(() => global.navigator.storage.getDirectory())
-      .then((root) => root.getFileHandle("blocks.idx"))
-      .then((handle) => handle.getFile())
-      .then((file) => {
-        if (!file || !Number.isSafeInteger(file.size) || file.size < 0 ||
-            file.size > core.MAX_INDEX_FILE_BYTES || typeof file.arrayBuffer !== "function") return failed("index-size", enabledFolders);
-        return file.arrayBuffer().then((buffer) => {
-          const parsed = core.parseBlocksIndex(new Uint8Array(buffer), enabledFolders);
-          if (!parsed.ok) return failed(parsed.stage || "index-parse", enabledFolders);
-          const folderIndexes = new Map();
-          for (let i = 0; i < enabledFolders.length; i += 1) {
-            folderIndexes.set(enabledFolders[i].toLowerCase(), i);
+    const manifestUrl = new URL("/game-manifest.txt", global.location.href).href;
+    const manifestPromise = typeof global.fetch === "function"
+      ? Promise.resolve(global.fetch(manifestUrl))
+          .then((response) => response && response.ok && typeof response.text === "function"
+            ? response.text()
+            : "")
+          .catch(() => "")
+      : Promise.resolve("");
+    return manifestPromise.then((manifestText) => {
+      const manifestPlan = core.buildManifestEntries(payload, manifestText);
+      if (!manifestPlan.ok) {
+        return failed("manifest-" + manifestPlan.stage, [], []);
+      }
+      const enabledFolders = manifestPlan.enabledFolders;
+      const manifestEntries = manifestPlan.entries;
+      if (enabledFolders.length === 0) {
+        return {
+          maskBuffer: new ArrayBuffer(0),
+          indexSize: 0,
+          enabledFolders: [],
+          manifestEntries: manifestEntries,
+          error: null
+        };
+      }
+      if (!global.navigator || !global.navigator.storage ||
+          typeof global.navigator.storage.getDirectory !== "function") {
+        return failed("opfs-unavailable", enabledFolders, manifestEntries);
+      }
+      return Promise.resolve()
+        .then(() => global.navigator.storage.getDirectory())
+        .then((root) => root.getFileHandle("blocks.idx"))
+        .then((handle) => handle.getFile())
+        .then((file) => {
+          if (!file || !Number.isSafeInteger(file.size) || file.size < 0 ||
+              file.size > core.MAX_INDEX_FILE_BYTES || typeof file.arrayBuffer !== "function") {
+            return failed("index-size", enabledFolders, manifestEntries);
           }
-          const compact = new Uint32Array(parsed.records.length * 4);
-          for (let i = 0; i < parsed.records.length; i += 1) {
-            const record = parsed.records[i];
-            const folder = record.path.slice(ADDON_PREFIX.length).split("/")[0].toLowerCase();
-            const folderIndex = folderIndexes.get(folder);
-            if (!Number.isSafeInteger(folderIndex)) return failed("folder-index", enabledFolders);
-            compact.set([record.start, record.end, record.value, folderIndex], i * 4);
-          }
-          return { maskBuffer: compact.buffer, indexSize: parsed.indexSize, enabledFolders, error: null };
-        });
-      })
-      .catch(() => failed("opfs-read", enabledFolders));
+          return file.arrayBuffer().then((buffer) => {
+            const parsed = core.parseBlocksIndex(new Uint8Array(buffer), enabledFolders);
+            if (!parsed.ok) {
+              return failed(parsed.stage || "index-parse", enabledFolders, manifestEntries);
+            }
+            const folderIndexes = new Map();
+            for (let i = 0; i < enabledFolders.length; i += 1) {
+              folderIndexes.set(enabledFolders[i].toLowerCase(), i);
+            }
+            const compact = new Uint32Array(parsed.records.length * 4);
+            for (let i = 0; i < parsed.records.length; i += 1) {
+              const record = parsed.records[i];
+              const folder = record.path.slice(ADDON_PREFIX.length).split("/")[0].toLowerCase();
+              const folderIndex = folderIndexes.get(folder);
+              if (!Number.isSafeInteger(folderIndex)) {
+                return failed("folder-index", enabledFolders, manifestEntries);
+              }
+              compact.set([record.start, record.end, record.value, folderIndex], i * 4);
+            }
+            return {
+              maskBuffer: compact.buffer,
+              indexSize: parsed.indexSize,
+              enabledFolders,
+              manifestEntries,
+              error: null
+            };
+          });
+        })
+        .catch(() => failed("opfs-read", enabledFolders, manifestEntries));
+    });
   }
 
   function interceptWorker(rawUrl, options, decision) {
@@ -1134,6 +1411,7 @@
         maskBuffer: maskData.maskBuffer.slice(0),
         indexSize: maskData.indexSize,
         enabledFolders: maskData.enabledFolders,
+        manifestEntries: maskData.manifestEntries || [],
         maskError: maskData.error
       });
       Object.defineProperty(bootData, BOOT_KEY, { value: true, enumerable: true });

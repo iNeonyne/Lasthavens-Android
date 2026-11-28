@@ -9,6 +9,9 @@ sealed class AddonBlockedReason {
   data class MissingDependencies(val missing: List<String>) : AddonBlockedReason()
 
   data object DependencyCycle : AddonBlockedReason()
+
+  /** The addon cannot be served by the runtime payload; [detail] names the offending file/limit. */
+  data class TooLarge(val detail: String) : AddonBlockedReason()
 }
 
 data class AddonLoadPlan(
@@ -44,7 +47,7 @@ object AddonRuntimePlanner {
       require(
         (addon.dependencies + addon.optionalDependencies).all {
           it.length <= AddonArchive.MAX_DEPENDENCY_NAME_CHARS && it.matches(Regex("[A-Za-z0-9_-]+"))
-        }
+        },
       ) {
         "Addon contains an invalid dependency name."
       }
@@ -70,12 +73,22 @@ object AddonRuntimePlanner {
           dependentsByDependency.getOrPut(dependency) { mutableListOf() } += addon
         }
       }
-      if (addon.folder in report.cyclicFolders) {
-        blocked[addon.folder] = AddonBlockedReason.DependencyCycle
-      } else {
-        val missing = addon.dependencies.filter { it.lowercase(Locale.ROOT) !in enabledByLower }
-        if (missing.isNotEmpty()) {
-          blocked[addon.folder] = AddonBlockedReason.MissingDependencies(missing)
+      when {
+        addon.folder in report.cyclicFolders -> {
+          blocked[addon.folder] = AddonBlockedReason.DependencyCycle
+        }
+        addon.sizeBytes > AddonLimits.MAX_RUNTIME_BUNDLE_BYTES -> {
+          blocked[addon.folder] =
+            AddonBlockedReason.TooLarge(
+              "addon exceeds the " +
+                "${AddonLimits.MAX_RUNTIME_BUNDLE_BYTES / (1024L * 1024L)} MiB runtime bundle limit",
+            )
+        }
+        else -> {
+          val missing = addon.dependencies.filter { it.lowercase(Locale.ROOT) !in enabledByLower }
+          if (missing.isNotEmpty()) {
+            blocked[addon.folder] = AddonBlockedReason.MissingDependencies(missing)
+          }
         }
       }
     }
@@ -128,7 +141,7 @@ object AddonRuntimePlanner {
     // Keep the ready queue deterministic and bounded to O((V + E) log V).
     val ready =
       PriorityQueue<String>(
-        compareByDescending<String> { optionalProviderPriority.getValue(it) }.thenBy { it }
+        compareByDescending<String> { optionalProviderPriority.getValue(it) }.thenBy { it },
       )
     inDegree.filterValues { it == 0 }.keys.forEach(ready::add)
     val ordered = mutableListOf<AddonLibraryItem>()
@@ -178,7 +191,7 @@ object AddonRuntimePlanner {
 
   private fun sha256(value: String): String =
     MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8)).joinToString(
-      ""
+      "",
     ) {
       "%02x".format(it)
     }

@@ -40,8 +40,26 @@
   }
 
   let currentBundle = null;
+  let pageBundleClone = null;
   let ready = false;
   let errorCode = null;
+  let currentPlan = null;
+  let planError = null;
+
+  function deepFreezePageClone(value, seen) {
+    if (value === null || typeof value !== "object") {
+      return value;
+    }
+    const visited = seen || new WeakSet();
+    if (visited.has(value)) {
+      return value;
+    }
+    visited.add(value);
+    for (const key of Object.keys(value)) {
+      deepFreezePageClone(value[key], visited);
+    }
+    return Object.freeze(value);
+  }
 
   function isSafeFolder(folder) {
     return typeof folder === "string" &&
@@ -216,6 +234,86 @@
     };
   }
 
+  const BOOTSTRAP_BLOCKED_REASONS = new Set([
+    "missingDependencies",
+    "dependencyCycle",
+    "payloadTooLarge"
+  ]);
+
+  /**
+   * Fetches and validates the native bootstrap plan (issue #245): per ordered addon the TOC
+   * load-file entry points, plus blocked addons with reasons. Every folder must exist in the
+   * validated bundle and every load path must be a safe path present in that addon's files.
+   * A failure is recorded as a bounded plan error instead of blocking the bundle getters.
+   */
+  async function fetchBootstrapPlan() {
+    try {
+      const plan = await requestNative("getBootstrapPlan", {}, "bootstrapPlan");
+      if (
+        plan.revision !== currentBundle.revision ||
+        typeof plan.sourceRevision !== "string" ||
+        plan.sourceRevision.length < 1 ||
+        plan.sourceRevision.length > 128 ||
+        !Array.isArray(plan.addons) ||
+        plan.addons.length > MAX_RUNTIME_ADDONS ||
+        !Array.isArray(plan.blocked) ||
+        plan.blocked.length > MAX_RUNTIME_ADDONS
+      ) {
+        throw new Error("invalidResponse");
+      }
+      const bundleAddons = new Map(currentBundle.addons.map((addon) => [addon.folder, addon]));
+      const seenFolders = new Set();
+      let totalLoadFiles = 0;
+      const addons = [];
+      for (const entry of plan.addons) {
+        if (!entry || !isSafeFolder(entry.folder) || seenFolders.has(entry.folder.toLowerCase())) {
+          throw new Error("invalidResponse");
+        }
+        seenFolders.add(entry.folder.toLowerCase());
+        const bundleAddon = bundleAddons.get(entry.folder);
+        if (!bundleAddon || !Array.isArray(entry.loadFiles)) {
+          throw new Error("invalidResponse");
+        }
+        totalLoadFiles += entry.loadFiles.length;
+        if (totalLoadFiles > 256) {
+          throw new Error("invalidResponse");
+        }
+        const seenPaths = new Set();
+        for (const path of entry.loadFiles) {
+          if (
+            typeof path !== "string" ||
+            !isSafeRelativePath(path) ||
+            seenPaths.has(path.toLowerCase()) ||
+            !(path in bundleAddon.files)
+          ) {
+            throw new Error("invalidResponse");
+          }
+          seenPaths.add(path.toLowerCase());
+        }
+        addons.push({ folder: entry.folder, loadFiles: entry.loadFiles.slice() });
+      }
+      const blocked = [];
+      for (const entry of plan.blocked) {
+        if (
+          !entry ||
+          !isSafeFolder(entry.folder) ||
+          !BOOTSTRAP_BLOCKED_REASONS.has(entry.reason)
+        ) {
+          throw new Error("invalidResponse");
+        }
+        blocked.push({ folder: entry.folder, reason: entry.reason });
+      }
+      currentPlan = core.deepFreeze({
+        revision: plan.revision,
+        addons: core.deepFreeze(addons),
+        blocked: core.deepFreeze(blocked)
+      });
+    } catch (error) {
+      const code = typeof error?.message === "string" ? error.message : "unavailable";
+      planError = code.slice(0, 32);
+    }
+  }
+
   function publishToPage() {
     try {
       const targetWindow = window;
@@ -223,7 +321,33 @@
       const pageBridge = cloneInto(
         {
           getBundle: exportFunction(
-            () => currentBundle === null ? null : cloneInto(currentBundle, targetWindow),
+            () => {
+              if (currentBundle === null) {
+                return null;
+              }
+              // One page-realm clone per payload revision (issue #229): the bundle is deep
+              // frozen and read-only, so the same clone is reused until the revision changes.
+              if (pageBundleClone === null) {
+                // cloneInto uses structured cloning, which does not retain property
+                // descriptors. Re-freeze the page-realm copy (including nested file maps) so
+                // cached page callers cannot mutate the shared payload.
+                pageBundleClone = deepFreezePageClone(cloneInto(currentBundle, targetWindow));
+              }
+              return pageBundleClone;
+            },
+            targetWindow,
+          ),
+          getRevision: exportFunction(
+            () => (currentBundle === null ? null : currentBundle.revision),
+            targetWindow,
+          ),
+          getBootstrapPlan: exportFunction(
+            () =>
+              currentPlan === null
+                ? planError === null
+                  ? null
+                  : cloneInto({ error: planError }, targetWindow)
+                : cloneInto(currentPlan, targetWindow),
             targetWindow,
           ),
           getState: exportFunction(
@@ -256,6 +380,7 @@
           throw new Error("invalidPayload");
         }
         currentBundle = core.deepFreeze(payload);
+        pageBundleClone = null;
         ready = true;
         return;
       } catch (error) {
@@ -277,5 +402,10 @@
   if (!publishToPage()) {
     return;
   }
-  fetchBundle();
+  fetchBundle().then(() => {
+    if (currentBundle !== null) {
+      return fetchBootstrapPlan();
+    }
+    return undefined;
+  });
 })();

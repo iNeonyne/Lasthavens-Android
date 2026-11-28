@@ -5,7 +5,7 @@ labels: []
 body:
   - type: markdown
     attributes:
-      value: "Before submitting, search open and closed issues for the same behavior. Remove account details, cookies, tokens, URLs with session parameters, and other secrets from logs/screenshots."
+      value: "Before submitting, search open and closed issues for the same behavior. Remove account details, cookies, tokens, URLs with session parameters, and other secrets from logs/screenshots. The agent ownership label is applied automatically after creation; only Chaty assigns an implementation owner."
   - type: textarea
     id: summary
     attributes:

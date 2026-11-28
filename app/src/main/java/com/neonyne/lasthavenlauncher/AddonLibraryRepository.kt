@@ -13,8 +13,11 @@ import java.util.Locale
 import java.util.Properties
 import java.util.UUID
 import java.util.concurrent.CancellationException
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.ReentrantLock
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlin.concurrent.withLock
 
 internal const val MAX_ADDON_LIBRARY_ITEMS = 10_000
 
@@ -41,7 +44,20 @@ data class AddonLibrarySnapshot(
     get() = addons.sumOf { it.sizeBytes }
 }
 
-/** App-private, file-backed addon library. Imported packages are never enabled automatically. */
+/**
+ * App-private, file-backed addon library. Imported packages are never enabled automatically.
+ *
+ * All repository operations (reads, imports, removals, exports and transaction recovery) are
+ * serialized behind one lock per canonical library root (issue #227). The launcher creates separate
+ * repository instances over the same directory — the bridge snapshot path and the Addon Manager
+ * executor — so the lock is shared by canonical root path, not per instance. This guarantees that
+ * destructive stale recovery can never observe an in-flight transaction: while a mutation holds the
+ * lock, no other operation can run recovery, and any transaction record a recovery pass sees is
+ * genuinely abandoned (its owning process is gone). Recovery also runs once under the lock before
+ * an instance's first operation, so a mutation cannot commit on top of an ambiguous index left by a
+ * previous process; the pass is idempotent, and recovery failures are retried by the next operation
+ * instead of being silently skipped.
+ */
 class AddonLibraryRepository(
   private val root: File,
   private val availableStorageBytes: () -> Long = { root.usableSpace },
@@ -58,9 +74,19 @@ class AddonLibraryRepository(
     const val TEMP_INDEX_PREFIX = ".library-"
     const val TEMP_INDEX_SUFFIX = ".tmp"
     const val SOURCE_ARCHIVE_PREFIX = "addon-source-"
+
+    /**
+     * One lock per canonical library root, shared by every [AddonLibraryRepository] instance that
+     * points at that root.
+     */
+    val rootLocks = ConcurrentHashMap<String, ReentrantLock>()
   }
 
   private val indexFile = File(root, "library.properties")
+
+  private val rootKey: String by lazy { root.canonicalFile.path }
+
+  private val startupRecoveryCompleted = java.util.concurrent.atomic.AtomicBoolean(false)
 
   private data class TransactionPlan(
     val oldRevision: String?,
@@ -77,10 +103,37 @@ class AddonLibraryRepository(
     val backup: File?,
   )
 
-  fun readLibrary(performStaleSweep: Boolean = true): AddonLibrarySnapshot {
-    recoverPendingTransactions(performStaleSweep)
-    return readLibraryIndex(requireAddonDirectories = true)
-      ?: AddonLibrarySnapshot("empty", emptyList())
+  fun readLibrary(performStaleSweep: Boolean = true): AddonLibrarySnapshot = withLibraryLock {
+    recoverBeforeOperation(performStaleSweep)
+    readLibraryIndex(requireAddonDirectories = true) ?: AddonLibrarySnapshot("empty", emptyList())
+  }
+
+  /**
+   * Runs [block] while holding the repository-wide lock for this library root. Runtime payload
+   * manifest and chunk reads use it so addon files cannot be renamed or deleted by a concurrent
+   * import, removal or recovery pass while they are being read.
+   */
+  fun <T> withLibraryAccess(block: () -> T): T = withLibraryLock {
+    recoverBeforeOperation(performStaleSweep = false)
+    block()
+  }
+
+  private fun <T> withLibraryLock(block: () -> T): T =
+    rootLocks.computeIfAbsent(rootKey) { ReentrantLock() }.withLock(block)
+
+  /**
+   * Performs the controlled startup recovery before the first operation on this root, and keeps the
+   * historical recovery-on-read behavior for sweep-enabled reads. Runs under the repository lock,
+   * so it can never race a mutation; the completion marker is only recorded after recovery
+   * succeeds, so a failed recovery is retried by the next operation instead of being skipped.
+   */
+  private fun recoverBeforeOperation(performStaleSweep: Boolean) {
+    val startupRecoveryPending = !startupRecoveryCompleted.get()
+    // Always revisit transaction journals. A later operation may be retrying recovery after a
+    // previous transaction cleanup failed; the per-instance marker only suppresses repeat stale
+    // sweeps, not the inexpensive journal check.
+    recoverPendingTransactions(performStaleSweep = performStaleSweep || startupRecoveryPending)
+    startupRecoveryCompleted.set(true)
   }
 
   /**
@@ -169,6 +222,18 @@ class AddonLibraryRepository(
     onStage: (AddonImportStage) -> Unit = {},
     confirmReplacement: (List<String>) -> Boolean = { true },
   ): AddonLibrarySnapshot = input.use { source ->
+    withLibraryLock {
+      importZipLocked(source, compressedSize, onStage, confirmReplacement)
+    }
+  }
+
+  private fun importZipLocked(
+    input: InputStream,
+    compressedSize: Long?,
+    onStage: (AddonImportStage) -> Unit,
+    confirmReplacement: (List<String>) -> Boolean,
+  ): AddonLibrarySnapshot {
+    recoverBeforeOperation(performStaleSweep = false)
     if (!root.exists() && !root.mkdirs()) {
       throw IllegalStateException("Could not create addon storage.")
     }
@@ -177,10 +242,10 @@ class AddonLibraryRepository(
       "Not enough free storage to stage the selected archive."
     }
     val extraction = File(root, EXTRACT_PREFIX + UUID.randomUUID())
-    try {
+    return try {
       val imported =
         AddonArchive.importZip(
-          source,
+          input,
           compressedSize,
           extraction,
           beforeExtraction = { _ ->
@@ -193,7 +258,11 @@ class AddonLibraryRepository(
         )
       require(imported.isNotEmpty()) { "The archive contains no addons." }
 
-      val current = readLibrary(performStaleSweep = false)
+      // Mid-import index reads never run recovery: the in-flight extraction and staging belong to
+      // this active transaction, and the repository lock already excludes every other operation.
+      val current =
+        readLibraryIndex(requireAddonDirectories = true)
+          ?: AddonLibrarySnapshot("empty", emptyList())
       val replacing = imported.map { it.folder.lowercase(Locale.ROOT) }.toSet()
       val replacedFolders =
         current.addons.filter { it.folder.lowercase(Locale.ROOT) in replacing }.map { it.folder }
@@ -326,9 +395,11 @@ class AddonLibraryRepository(
     }
   }
 
-  fun setEnabled(folder: String, enabled: Boolean): AddonLibrarySnapshot {
+  fun setEnabled(folder: String, enabled: Boolean): AddonLibrarySnapshot = withLibraryLock {
+    recoverBeforeOperation(performStaleSweep = false)
     require(isSafeFolder(folder)) { "Invalid addon folder." }
-    val current = readLibrary()
+    val current =
+      readLibraryIndex(requireAddonDirectories = true) ?: AddonLibrarySnapshot("empty", emptyList())
     require(current.addons.any { it.folder == folder }) { "Addon not found." }
     val next =
       current.copy(
@@ -336,12 +407,18 @@ class AddonLibraryRepository(
         addons = current.addons.map { if (it.folder == folder) it.copy(enabled = enabled) else it },
       )
     writeIndex(next)
-    return next
+    next
   }
 
-  fun removeAddon(folder: String): AddonLibrarySnapshot {
+  fun removeAddon(folder: String): AddonLibrarySnapshot = withLibraryLock {
+    removeAddonLocked(folder)
+  }
+
+  private fun removeAddonLocked(folder: String): AddonLibrarySnapshot {
+    recoverBeforeOperation(performStaleSweep = false)
     require(isSafeFolder(folder)) { "Invalid addon folder." }
-    val current = readLibrary()
+    val current =
+      readLibraryIndex(requireAddonDirectories = true) ?: AddonLibrarySnapshot("empty", emptyList())
     require(current.addons.any { it.folder == folder }) { "Addon not found." }
     val newRevision = UUID.randomUUID().toString()
     val next =
@@ -385,7 +462,12 @@ class AddonLibraryRepository(
     return next
   }
 
-  fun exportZip(folder: String, output: OutputStream) {
+  fun exportZip(folder: String, output: OutputStream) = withLibraryLock {
+    exportZipLocked(folder, output)
+  }
+
+  private fun exportZipLocked(folder: String, output: OutputStream) {
+    recoverBeforeOperation(performStaleSweep = false)
     require(isSafeFolder(folder)) { "Invalid addon folder." }
     val addonDirectory = File(root, folder)
     require(addonDirectory.isDirectory) { "Addon not found." }

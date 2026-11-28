@@ -23,6 +23,7 @@
     <string name="addon_manager_export_failed">Не удалось экспортировать аддон.</string>
     <string name="addon_manager_read_failed">Не удалось прочитать библиотеку аддонов.</string>
     <string name="addon_manager_dependency_cycle">Обнаружен цикл зависимостей между дополнениями.</string>
+    <string name="addon_manager_runtime_too_large">Слишком большой для среды выполнения игры; не будет загружен в игру.</string>
     <string name="addon_manager_remove_confirm_title">Удалить дополнение?</string>
     <string name="addon_manager_remove_confirm_message">Удалить %1$s с этого устройства? Это действие нельзя отменить.</string>
     <string name="addon_manager_cancel">Отмена</string>

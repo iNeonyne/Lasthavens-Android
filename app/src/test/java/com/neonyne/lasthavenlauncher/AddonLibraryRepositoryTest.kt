@@ -626,4 +626,56 @@ class AddonLibraryRepositoryTest {
     }
     return output.toByteArray()
   }
+
+  private fun zipOfBytes(vararg files: Pair<String, ByteArray>): ByteArray {
+    val output = ByteArrayOutputStream()
+    ZipOutputStream(output).use { zip ->
+      for ((name, content) in files) {
+        zip.putNextEntry(ZipEntry(name))
+        zip.write(content)
+        zip.closeEntry()
+      }
+    }
+    return output.toByteArray()
+  }
+
+  @Test
+  fun importFlagsFilesAndBundlesExceedingTheRuntimeLimitsWithoutRejectingTheArchive() {
+    val root = temporaryFolder.newFolder("runtime-limit-warnings")
+    val repository = AddonLibraryRepository(root)
+    val oversizedFile =
+      ByteArray(AddonLimits.MAX_RUNTIME_BUNDLE_BYTES.toInt() + 1) { (it % 251).toByte() }
+    val archive =
+      zipOfBytes(
+        "Sample/Sample.toc" to "## Version: 1\n".toByteArray(Charsets.UTF_8),
+        "Sample/big.bin" to oversizedFile,
+      )
+
+    val imported = repository.importZip(ByteArrayInputStream(archive), archive.size.toLong())
+
+    val warnings = imported.addons.single().warnings
+    assertTrue(
+      warnings.any { it.contains("big.bin") && it.contains("8 MiB") },
+    )
+    assertTrue(
+      warnings.any { it.contains("16 MiB") },
+    )
+    assertEquals(1, repository.readLibrary().addons.size)
+  }
+
+  @Test
+  fun importDoesNotFlagFilesWithinTheRuntimeLimits() {
+    val root = temporaryFolder.newFolder("runtime-limit-clean")
+    val repository = AddonLibraryRepository(root)
+    val boundaryFile = ByteArray(AddonLimits.MAX_RUNTIME_FILE_BYTES.toInt()) { (it % 251).toByte() }
+    val archive =
+      zipOfBytes(
+        "Sample/Sample.toc" to "## Version: 1\n".toByteArray(Charsets.UTF_8),
+        "Sample/boundary.bin" to boundaryFile,
+      )
+
+    val imported = repository.importZip(ByteArrayInputStream(archive), archive.size.toLong())
+
+    assertTrue(imported.addons.single().warnings.isEmpty())
+  }
 }

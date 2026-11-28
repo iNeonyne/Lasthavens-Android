@@ -369,6 +369,42 @@ test("gate is inert when the allowlist is empty (fail closed)", () => {
   assert.equal(decision.reason, "allowlist-empty");
 });
 
+test("runtime worker gate pins the first validated em-pthread URL", () => {
+  const { core } = createPageContext({ allowlist: [] });
+  const config = { baseHref: BASE_HREF };
+  const first = core.shouldInterceptWorker(WORKER_URL, { name: "em-pthread" }, config);
+  assert.equal(first.ok, true);
+  assert.equal(first.reason, "learned");
+  assert.equal(first.href, WORKER_URL);
+
+  const repeated = core.shouldInterceptWorker(WORKER_URL, { name: "em-pthread" }, config);
+  assert.equal(repeated.ok, true);
+  const different = core.shouldInterceptWorker(
+    "https://lasthavens.com/game/other-worker.js",
+    { name: "em-pthread" },
+    config,
+  );
+  assert.equal(different.ok, false);
+  assert.equal(different.reason, "allowlist-miss");
+});
+
+test("runtime worker gate supports the alternate approved game origin only in its own page", () => {
+  const { core } = createPageContext({ allowlist: [] });
+  const altUrl = "https://alt.lasthavens.com/game/emscripten.py";
+  const decision = core.shouldInterceptWorker(altUrl, { name: "em-pthread" }, {
+    baseHref: "https://alt.lasthavens.com/play",
+  });
+  assert.equal(decision.ok, true);
+  assert.equal(decision.href, altUrl);
+  assert.doesNotThrow(() => core.buildBootstrapSource(altUrl));
+
+  const crossOrigin = core.shouldInterceptWorker(altUrl, { name: "em-pthread" }, {
+    baseHref: BASE_HREF,
+  });
+  assert.equal(crossOrigin.ok, false);
+  assert.equal(crossOrigin.reason, "url-origin");
+});
+
 test("gate accepts the exact allowlisted same-origin classic worker", () => {
   const { core } = createPageContext();
   const decision = core.shouldInterceptWorker(WORKER_URL, { name: "em-pthread" }, VALID_CONFIG);
@@ -387,6 +423,91 @@ test("gate rejects allowlist miss even with the correct name", () => {
   assert.equal(decision.reason, "allowlist-miss");
 });
 
+test("manifest entry builder excludes game-provided folders and validates addon files", () => {
+  const { core } = createPageContext();
+  const payload = {
+    revision: "a".repeat(64),
+    addons: [
+      { folder: "AlreadyBuiltIn", files: { "main.lua": base64Of("builtin") } },
+      { folder: "CustomAddon", files: { "main.lua": base64Of("hello"), "CustomAddon.toc": base64Of("## Interface: 30300") } },
+    ],
+  };
+  const manifest = "7\tInterface/AddOns/AlreadyBuiltIn/main.lua\n";
+  const plan = core.buildManifestEntries(payload, manifest);
+  assert.equal(plan.ok, true);
+  assert.deepEqual(Array.from(plan.enabledFolders), ["CustomAddon"]);
+  assert.deepEqual(
+    Array.from(plan.entries, (entry) => ({
+      path: String(entry.path),
+      sizeBytes: Number(entry.sizeBytes),
+    })),
+    [
+      { path: "Interface/AddOns/CustomAddon/main.lua", sizeBytes: 5 },
+      { path: "Interface/AddOns/CustomAddon/CustomAddon.toc", sizeBytes: 19 },
+    ],
+  );
+});
+
+test("manifest entry builder rejects unsafe paths, malformed base64 and duplicate folders", () => {
+  const { core } = createPageContext();
+  assert.equal(
+    core.buildManifestEntries({ addons: [{ folder: "Unsafe", files: { "../escape.lua": base64Of("x") } }] }, "").ok,
+    false,
+  );
+  assert.equal(
+    core.buildManifestEntries({ addons: [{ folder: "BadData", files: { "main.lua": "not-base64!" } }] }, "").ok,
+    false,
+  );
+  assert.equal(
+    core.buildManifestEntries({
+      addons: [
+        { folder: "Same", files: { "main.lua": base64Of("one") } },
+        { folder: "same", files: { "next.lua": base64Of("two") } },
+      ],
+    }, "").ok,
+    false,
+  );
+});
+
+test("worker manifest validator rejects entries outside enabled folders and duplicate paths", () => {
+  const { core } = createPageContext();
+  assert.equal(core.validateManifestEntries([
+    { path: "Interface/AddOns/Other/main.lua", sizeBytes: 1 },
+  ], ["Enabled"]).ok, false);
+  assert.equal(core.validateManifestEntries([
+    { path: "Interface/AddOns/Enabled/main.lua", sizeBytes: 1 },
+    { path: "Interface/AddOns/Enabled/main.lua", sizeBytes: 1 },
+  ], ["Enabled"]).ok, false);
+  const valid = core.validateManifestEntries([
+    { path: "Interface/AddOns/Enabled/main.lua", sizeBytes: 1 },
+  ], ["Enabled"]);
+  assert.equal(valid.ok, true);
+  assert.equal(Object.isFrozen(valid.entries), true);
+});
+
+test("manifest appender adds size/path records without duplicating an existing addon folder", () => {
+  const { core } = createPageContext();
+  const entries = [
+    { path: "Interface/AddOns/Enabled/main.lua", sizeBytes: 5 },
+    { path: "Interface/AddOns/AlreadyBuiltIn/main.lua", sizeBytes: 7 },
+  ];
+  const patched = core.appendAddonManifest(
+    "1\tInterface/FrameXML/FrameXML.lua\n7\tInterface/AddOns/AlreadyBuiltIn/main.lua\n",
+    entries,
+  );
+  assert.equal(
+    patched,
+    "1\tInterface/FrameXML/FrameXML.lua\n7\tInterface/AddOns/AlreadyBuiltIn/main.lua\n5\tInterface/AddOns/Enabled/main.lua\n",
+  );
+  assert.equal(
+    core.appendAddonManifest(
+      "7\tInterface/AddOns/AlreadyBuiltIn/main.lua\n",
+      entries,
+    ),
+    "7\tInterface/AddOns/AlreadyBuiltIn/main.lua\n5\tInterface/AddOns/Enabled/main.lua\n",
+  );
+});
+
 test("page Worker wrapper passes non-target workers through untouched", () => {
   const { context, constructed } = createPageContext();
   vm.runInContext(`
@@ -400,24 +521,35 @@ test("page Worker wrapper passes non-target workers through untouched", () => {
   }
 });
 
-test("page Worker wrapper is inert when the allowlist is empty", () => {
+test("page Worker wrapper pins the first validated worker when no static allowlist is supplied", () => {
   const { context, constructed } = createPageContext({ allowlist: [] });
-  vm.runInContext(`new Worker(${JSON.stringify(WORKER_URL)}, { name: "em-pthread" });`, context);
-  assert.equal(constructed.length, 1);
-  assert.ok(!constructed[0].url.startsWith("blob:"));
+  vm.runInContext(`
+    new Worker(${JSON.stringify(WORKER_URL)}, { name: "em-pthread" });
+    new Worker("https://lasthavens.com/game/other-worker.js", { name: "em-pthread" });
+  `, context);
+  assert.equal(constructed.length, 2);
+  assert.ok(constructed[0].url.startsWith("blob:"));
+  assert.ok(!constructed[1].url.startsWith("blob:"));
 });
 
-test("intercepted worker bootstraps through a Blob with the exact original url", () => {
+test("intercepted worker bootstraps through a Blob with the exact original url", async () => {
   const { context, constructed, state } = createPageContext();
   vm.runInContext(`new Worker(${JSON.stringify(WORKER_URL)}, { name: "em-pthread" });`, context);
   assert.equal(constructed.length, 1);
   const worker = constructed[0];
+  for (let attempt = 0; attempt < 20 && worker.posted.length === 0; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  assert.equal(worker.posted.length, 1, "worker boot message should be posted");
   assert.ok(worker.url.startsWith("blob:"));
   assert.equal(worker.options.name, "em-pthread");
   const blob = state.objectUrlsCreated[0];
   assert.ok(blob instanceof FakeBlob);
   const source = blob.parts.join("");
   assert.ok(source.includes("importScripts(originalUrl)"));
+  assert.ok(source.includes("installAddonManifestFetch"));
+  assert.ok(source.includes("validateManifestEntries"));
+  assert.ok(source.includes("MAX_MANIFEST_TEXT_BYTES"));
   assert.ok(source.includes(JSON.stringify(WORKER_URL)));
   assert.ok(!source.includes("eval("));
   const bootMessage = worker.posted[0];
@@ -1054,9 +1186,12 @@ test("OPFS blocks.idx is read bounded and its spans are sent in the worker boot 
   const bytes = indexBytes("file\t123\tkind\tmeta\tInterface/AddOns/Foo/a.lua\n");
   const snapshot = Array.from(bytes);
   const page = createPageContext({ opfsBytes: bytes });
-  page.setPayload({ revision: "a".repeat(64), addons: [{ folder: "Foo", files: {} }] });
+  page.setPayload({ revision: "a".repeat(64), addons: [{ folder: "Foo", files: { "a.lua": base64Of("x") } }] });
   vm.runInContext('new Worker("' + WORKER_URL + '", { name: "em-pthread" })', page.context);
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  for (let attempt = 0; attempt < 20 && page.constructed[0].posted.length === 0; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  assert.equal(page.constructed[0].posted.length, 1, "worker boot message should be posted");
   const boot = page.constructed[0].posted[0].data;
   assert.equal(boot.__lhBoot, true);
   assert.equal(boot.enabledFolders.length, 1);

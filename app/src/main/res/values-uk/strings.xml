@@ -23,6 +23,7 @@
     <string name="addon_manager_export_failed">Не вдалося експортувати додаток.</string>
     <string name="addon_manager_read_failed">Не вдалося прочитати бібліотеку додатків.</string>
     <string name="addon_manager_dependency_cycle">Виявлено цикл залежностей між додатками.</string>
+    <string name="addon_manager_runtime_too_large">Занадто великий для середовища виконання гри; не буде завантажено у гру.</string>
     <string name="addon_manager_remove_confirm_title">Видалити додаток?</string>
     <string name="addon_manager_remove_confirm_message">Видалити %1$s із цього пристрою? Цю дію не можна скасувати.</string>
     <string name="addon_manager_cancel">Скасувати</string>

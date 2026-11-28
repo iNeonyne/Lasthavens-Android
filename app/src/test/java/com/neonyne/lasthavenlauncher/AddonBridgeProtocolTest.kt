@@ -25,6 +25,115 @@ class AddonBridgeProtocolTest {
   }
 
   @Test
+  fun `parses the bootstrap plan request with an exact key set`() {
+    assertEquals(
+      AddonBridgeProtocol.AddonBridgeRequest("getBootstrapPlan", "r-7"),
+      AddonBridgeProtocol.parse(mapOf("type" to "getBootstrapPlan", "requestId" to "r-7")),
+    )
+    assertNull(
+      AddonBridgeProtocol.parse(
+        mapOf("type" to "getBootstrapPlan", "requestId" to "r-7", "extra" to "x"),
+      ),
+    )
+  }
+
+  @Test
+  fun `bootstrap plan builder validates revisions, folders, paths and bounds`() {
+    val valid =
+      AddonBridgeProtocol.bootstrapPlan(
+        "r-1",
+        "a".repeat(64),
+        "source-1",
+        listOf(
+          AddonBridgeProtocol.BootstrapAddonEntry("DepCore", listOf("core.js", "ui/init.js")),
+          AddonBridgeProtocol.BootstrapAddonEntry("UnitFrame", listOf("init.js")),
+        ),
+        listOf(AddonBridgeProtocol.BlockedAddon("Broken", "missingDependencies")),
+      )
+    assertNotNull(valid)
+    val fields = valid?.toFields()
+    assertEquals("bootstrapPlan", fields?.get("type"))
+    assertEquals(
+      listOf("core.js", "ui/init.js"),
+      (fields?.get("addons") as List<*>).first().let { (it as Map<*, *>)["loadFiles"] },
+    )
+
+    assertNull(
+      AddonBridgeProtocol.bootstrapPlan(
+        "r-1",
+        "short",
+        "source-1",
+        listOf(AddonBridgeProtocol.BootstrapAddonEntry("DepCore", listOf("core.js"))),
+        emptyList(),
+      ),
+    )
+    assertNull(
+      AddonBridgeProtocol.bootstrapPlan(
+        "r-1",
+        "a".repeat(64),
+        "source-1",
+        listOf(AddonBridgeProtocol.BootstrapAddonEntry("blizzard_secret", emptyList())),
+        emptyList(),
+      ),
+    )
+    assertNull(
+      AddonBridgeProtocol.bootstrapPlan(
+        "r-1",
+        "a".repeat(64),
+        "source-1",
+        listOf(
+          AddonBridgeProtocol.BootstrapAddonEntry("DepCore", listOf("../escape.js")),
+        ),
+        emptyList(),
+      ),
+    )
+    assertNull(
+      AddonBridgeProtocol.bootstrapPlan(
+        "r-1",
+        "a".repeat(64),
+        "source-1",
+        listOf(
+          AddonBridgeProtocol.BootstrapAddonEntry("DepCore", listOf("core.js")),
+          AddonBridgeProtocol.BootstrapAddonEntry("depcore", listOf("other.js")),
+        ),
+        emptyList(),
+      ),
+    )
+    assertNull(
+      AddonBridgeProtocol.bootstrapPlan(
+        "r-1",
+        "a".repeat(64),
+        "source-1",
+        listOf(AddonBridgeProtocol.BootstrapAddonEntry("DepCore", listOf("core.js", "core.js"))),
+        emptyList(),
+      ),
+    )
+    assertNull(
+      AddonBridgeProtocol.bootstrapPlan(
+        "r-1",
+        "a".repeat(64),
+        "source-1",
+        listOf(
+          AddonBridgeProtocol.BootstrapAddonEntry(
+            "DepCore",
+            List(AddonBridgeProtocol.MAX_RESPONSE_ITEMS + 1) { "f$it.js" },
+          ),
+        ),
+        emptyList(),
+      ),
+    )
+    assertNull(
+      AddonBridgeProtocol.bootstrapPlan(
+        "r-1",
+        "a".repeat(64),
+        "source-1",
+        listOf(AddonBridgeProtocol.BootstrapAddonEntry("DepCore", listOf("core.js"))),
+        listOf(AddonBridgeProtocol.BlockedAddon("Broken", "mystery")),
+      ),
+    )
+  }
+
+  @Test
   fun `rejects unknown or malformed fields`() {
     assertNull(AddonBridgeProtocol.parse(mapOf("type" to "ping", "requestId" to "r", "extra" to 1)))
     assertNull(AddonBridgeProtocol.parse(mapOf("type" to "ping")))
@@ -164,49 +273,49 @@ class AddonBridgeProtocolTest {
         "r-1",
         "rev1",
         listOf(AddonBridgeProtocol.AddonSummary("unit-frame", "", true)),
-      )
+      ),
     )
     assertNotNull(
       AddonBridgeProtocol.addonList(
         "r-1",
         "rev1",
         listOf(AddonBridgeProtocol.AddonSummary("unit-frame", "Release candidate 1", true)),
-      )
+      ),
     )
     assertNull(
       AddonBridgeProtocol.addonList(
         "r-1",
         "rev1",
         listOf(AddonBridgeProtocol.AddonSummary("unit-frame", "bad\nversion", true)),
-      )
+      ),
     )
     assertNull(
       AddonBridgeProtocol.addonList(
         "r-1",
         "rev1",
         List(AddonBridgeProtocol.MAX_RESPONSE_ITEMS + 1) { summary },
-      )
+      ),
     )
     assertNull(
       AddonBridgeProtocol.addonList(
         "r-1",
         "rev1",
         listOf(AddonBridgeProtocol.AddonSummary("../escape", "0.5.1", true)),
-      )
+      ),
     )
     assertNull(
       AddonBridgeProtocol.addonList(
         "r-1",
         "rev1",
         listOf(AddonBridgeProtocol.AddonSummary("unit.frame", "0.5.1", true)),
-      )
+      ),
     )
     assertNull(
       AddonBridgeProtocol.addonList(
         "r-1",
         "rev1",
         listOf(AddonBridgeProtocol.AddonSummary("blizzard_ui", "0.5.1", true)),
-      )
+      ),
     )
     assertNull(
       AddonBridgeProtocol.addonList(
@@ -216,7 +325,7 @@ class AddonBridgeProtocolTest {
           AddonBridgeProtocol.AddonSummary("ok", "0.5.1", true),
           AddonBridgeProtocol.AddonSummary("a".repeat(129), "0.5.1", false),
         ),
-      )
+      ),
     )
   }
 
@@ -230,7 +339,7 @@ class AddonBridgeProtocolTest {
         "rev1",
         List(129) { "addon$it" },
         List(128) { "blocked$it" },
-      )
+      ),
     )
     assertNull(AddonBridgeProtocol.loadOrder("r-1", "rev1", listOf(".."), emptyList()))
     assertNull(AddonBridgeProtocol.loadOrder("r-1", "rev1", listOf("."), emptyList()))
@@ -243,7 +352,7 @@ class AddonBridgeProtocolTest {
         "rev1",
         listOf("a".repeat(AddonBridgeProtocol.MAX_ITEM_CHARS + 1)),
         emptyList(),
-      )
+      ),
     )
   }
 
@@ -251,10 +360,10 @@ class AddonBridgeProtocolTest {
   fun `response byte count is bounded`() {
     assertTrue(AddonBridgeProtocol.isResponseWithinByteLimit(0))
     assertTrue(
-      AddonBridgeProtocol.isResponseWithinByteLimit(AddonBridgeProtocol.MAX_RESPONSE_BYTES)
+      AddonBridgeProtocol.isResponseWithinByteLimit(AddonBridgeProtocol.MAX_RESPONSE_BYTES),
     )
     assertFalse(
-      AddonBridgeProtocol.isResponseWithinByteLimit(AddonBridgeProtocol.MAX_RESPONSE_BYTES + 1)
+      AddonBridgeProtocol.isResponseWithinByteLimit(AddonBridgeProtocol.MAX_RESPONSE_BYTES + 1),
     )
     assertFalse(AddonBridgeProtocol.isResponseWithinByteLimit(-1))
   }

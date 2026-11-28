@@ -39,7 +39,7 @@ class AddonRuntimePlannerTest {
             item("AceCore"),
             item("QuestHelper", dependencies = listOf("BagSort")),
           ),
-        )
+        ),
       )
     assertEquals(
       listOf("AceCore", "BagSort", "QuestHelper"),
@@ -60,7 +60,7 @@ class AddonRuntimePlannerTest {
             item("TopAddon", dependencies = listOf("MidLib")),
             item("HealthyAddon"),
           ),
-        )
+        ),
       )
     assertEquals(listOf("HealthyAddon"), plan.orderedAddons.map { it.folder })
     assertTrue(plan.blockedAddons["MidLib"] is AddonBlockedReason.MissingDependencies)
@@ -78,7 +78,7 @@ class AddonRuntimePlannerTest {
             item("Beta", dependencies = listOf("Alpha")),
             item("Standalone"),
           ),
-        )
+        ),
       )
     assertEquals(listOf("Standalone"), plan.orderedAddons.map { it.folder })
     assertEquals(AddonBlockedReason.DependencyCycle, plan.blockedAddons["Alpha"])
@@ -98,7 +98,7 @@ class AddonRuntimePlannerTest {
         /absolute.lua
         UI/Panel.xml
         """
-          .trimIndent()
+          .trimIndent(),
       )
     assertEquals(listOf("Core/Init.lua", "UI/Panel.xml"), files)
   }
@@ -123,7 +123,7 @@ class AddonRuntimePlannerTest {
         AddonLibrarySnapshot(
           "case-fold",
           listOf(item("BagSort", dependencies = listOf("aceCORE")), item("AceCore")),
-        )
+        ),
       )
     assertEquals(listOf("AceCore", "BagSort"), plan.orderedAddons.map { it.folder })
     assertTrue(plan.blockedAddons.isEmpty())
@@ -141,7 +141,7 @@ class AddonRuntimePlannerTest {
             item("Independent"),
             item("OptionalExtra"),
           ),
-        )
+        ),
       )
     val ordered = plan.orderedAddons.map { it.folder }
     assertTrue(ordered.indexOf("ZProvider") < ordered.indexOf("AConsumer"))
@@ -186,5 +186,62 @@ class AddonRuntimePlannerTest {
     org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
       AddonRuntimePlanner.parseTocLoadFiles("x".repeat(AddonArchive.MAX_TOC_BYTES.toInt() + 1))
     }
+  }
+
+  @Test
+  fun oversizedAddonsAreBlockedWithTooLargeAndOthersStayLoadable() {
+    val plan =
+      AddonRuntimePlanner.plan(
+        AddonLibrarySnapshot(
+          "size-limit-revision",
+          listOf(
+            item("Oversized").copy(sizeBytes = AddonLimits.MAX_RUNTIME_BUNDLE_BYTES + 1),
+            item("Healthy"),
+          ),
+        ),
+      )
+
+    assertEquals(listOf("Healthy"), plan.orderedAddons.map { it.folder })
+    val reason = plan.blockedAddons["Oversized"]
+    assertTrue(reason is AddonBlockedReason.TooLarge)
+    assertTrue(
+      (reason as AddonBlockedReason.TooLarge)
+        .detail
+        .contains(
+          "${AddonLimits.MAX_RUNTIME_BUNDLE_BYTES / (1024L * 1024L)} MiB",
+        ),
+    )
+  }
+
+  @Test
+  fun addonExactlyAtTheRuntimeBundleLimitRemainsLoadable() {
+    val plan =
+      AddonRuntimePlanner.plan(
+        AddonLibrarySnapshot(
+          "boundary-revision",
+          listOf(item("Boundary").copy(sizeBytes = AddonLimits.MAX_RUNTIME_BUNDLE_BYTES)),
+        ),
+      )
+
+    assertTrue(plan.blockedAddons.isEmpty())
+    assertEquals(listOf("Boundary"), plan.orderedAddons.map { it.folder })
+  }
+
+  @Test
+  fun dependentsOfOversizedAddonsAreAlsoBlocked() {
+    val plan =
+      AddonRuntimePlanner.plan(
+        AddonLibrarySnapshot(
+          "propagation-revision",
+          listOf(
+            item("OversizedLib").copy(sizeBytes = AddonLimits.MAX_RUNTIME_BUNDLE_BYTES + 1),
+            item("Dependent", dependencies = listOf("OversizedLib")),
+            item("Healthy"),
+          ),
+        ),
+      )
+
+    assertEquals(listOf("Healthy"), plan.orderedAddons.map { it.folder })
+    assertTrue(plan.blockedAddons.getValue("Dependent") is AddonBlockedReason.MissingDependencies)
   }
 }

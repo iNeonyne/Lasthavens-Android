@@ -43,6 +43,42 @@ class AddonArchiveTest {
   }
 
   @Test
+  fun warnsWhenAddonFileCountExceedsRuntimeLimit() {
+    val files = mutableListOf("Sample/Sample.toc" to "## Interface: 30300\n")
+    for (index in 0..AddonLimits.MAX_RUNTIME_FILES) {
+      files += "Sample/file-$index.lua" to "return $index"
+    }
+    val archive = zipOf(*files.toTypedArray())
+
+    val imported =
+      AddonArchive.importZip(
+        ByteArrayInputStream(archive),
+        archive.size.toLong(),
+        temporaryFolder.newFolder("runtime-file-count"),
+      )
+
+    assertTrue(imported.single().warnings.any { it.contains("more than 1024 files") })
+  }
+
+  @Test
+  fun warnsWhenDirectoryAndFileEntryCountExceedsRuntimeLimit() {
+    val files = mutableListOf("Sample/Sample.toc" to "## Interface: 30300\n")
+    for (index in 0 until AddonLimits.MAX_RUNTIME_FILES - 1) {
+      files += "Sample/group-$index/one/two/three/file-$index.lua" to ""
+    }
+    val archive = zipOf(*files.toTypedArray())
+
+    val imported =
+      AddonArchive.importZip(
+        ByteArrayInputStream(archive),
+        archive.size.toLong(),
+        temporaryFolder.newFolder("runtime-entry-count"),
+      )
+
+    assertTrue(imported.single().warnings.any { it.contains("runtime file and directory entry") })
+  }
+
+  @Test
   fun runsStoragePreflightBeforeWritingExpandedEntries() {
     val toc = "## Interface: 30300\n"
     val archive = zipOf("Sample/Sample.toc" to toc, "Sample/main.lua" to "print('sample')")
@@ -71,7 +107,7 @@ class AddonArchiveTest {
     val archive =
       zipOf(
         "Sample/Sample.toc" to
-          "## Dependencies: RequiredOne, RequiredTwo\n## OptionalDeps: OptionalOne, OptionalTwo\n"
+          "## Dependencies: RequiredOne, RequiredTwo\n## OptionalDeps: OptionalOne, OptionalTwo\n",
       )
 
     val imported =
