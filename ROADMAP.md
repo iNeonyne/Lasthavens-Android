@@ -49,7 +49,7 @@ Update this file when strategic priorities, sequence or release direction change
 <!-- ROADMAP-LIVE-START -->
 ## Live issue and PR inventory
 
-Generated: 2026-11-28T13:50:05+00:00
+Generated: 2026-11-28T13:57:11+00:00
 Source of truth: live GitHub Issues, pull requests and labels. This section is generated automatically; do not edit it manually.
 
 Every open issue is listed below, grouped by its current priority. Opening a newer issue or PR does not supersede an older one. Duplicates and supersession must be explicitly reviewed and linked in GitHub.
@@ -72,7 +72,6 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 - [#15 — P2 — Make updater recovery safer](https://github.com/iNeonyne/LastHavenPlus/issues/15) — bug, P2
 - [#16 — P2 — Keep-awake preference for landscape-only gameplay](https://github.com/iNeonyne/LastHavenPlus/issues/16) — enhancement, P2
 - [#17 — P2 — Back up and restore launcher settings](https://github.com/iNeonyne/LastHavenPlus/issues/17) — enhancement, P2
-- [#148 — P2 — Centralize app-wide landscape and immersive window state](https://github.com/iNeonyne/LastHavenPlus/issues/148) — enhancement, P2
 - [#182 — P2 — Close BSDIFF section streams when later initialization fails](https://github.com/iNeonyne/LastHavenPlus/issues/182) — bug, P2
 - [#184 — P2 — Move diagnostics log I/O off the Compose main thread](https://github.com/iNeonyne/LastHavenPlus/issues/184) — P2, performance
 - [#218 — P2 — Ignore callbacks from replaced GeckoSessions](https://github.com/iNeonyne/LastHavenPlus/issues/218) — bug, P2
@@ -108,7 +107,6 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 - [#238 — release: promote latest beta to main](https://github.com/iNeonyne/LastHavenPlus/pull/238) (main <- beta)
 - [#246 — fix: include version in release APK asset names](https://github.com/iNeonyne/LastHavenPlus/pull/246) (main <- chaty/versioned-apk-assets)
 - [#250 — ui: start landscape launcher redesign and POCO smoke coverage (#248)](https://github.com/iNeonyne/LastHavenPlus/pull/250) (beta <- chaty/native-landscape-ui-248)
-- [#253 — feat(ui): centralize app-window presentation into GameplayUiState](https://github.com/iNeonyne/LastHavenPlus/pull/253) (beta <- vibe/gameplay-ui-state-148)
 
 ### Recently completed (last 30 days)
 
@@ -130,6 +128,7 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 - [#167 — P0 — Verify ZIP 0.5.1 bridge runtime on pinned GeckoView Stable](https://github.com/iNeonyne/LastHavenPlus/issues/167)
 - [#150 — P2 — Document GeckoView content and Android permission policy](https://github.com/iNeonyne/LastHavenPlus/issues/150)
 - [#149 — P2 — Move launcher-owned user-facing strings into Android resources](https://github.com/iNeonyne/LastHavenPlus/issues/149)
+- [#148 — P2 — Centralize app-wide landscape and immersive window state](https://github.com/iNeonyne/LastHavenPlus/issues/148)
 - [#147 — P1 — Consolidate launcher navigation and back-stack state](https://github.com/iNeonyne/LastHavenPlus/issues/147)
 - [#146 — P1 — Extract GeckoView game-session ownership from MainActivity](https://github.com/iNeonyne/LastHavenPlus/issues/146)
 - [#142 — Chaty plan — continuous Vibe work queue and v2.5.0 integration hold](https://github.com/iNeonyne/LastHavenPlus/issues/142)
