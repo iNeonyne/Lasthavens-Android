@@ -27,4 +27,12 @@
     <string name="addon_manager_remove_confirm_title">Supprimer le module complémentaire ?</string>
     <string name="addon_manager_remove_confirm_message">Supprimer %1$s de cet appareil ? Cette action est irréversible.</string>
     <string name="addon_manager_cancel">Annuler</string>
+    <string name="addon_manager_status_blocked">Bloqué</string>
+    <string name="addon_manager_status_enabled">Activé</string>
+    <string name="addon_manager_status_disabled">Désactivé</string>
+    <string name="addon_manager_warnings_count">%1$d avertissements</string>
+    <string name="addon_manager_toggle">Basculer l’état de %1$s</string>
+    <string name="addon_manager_more_actions">Plus d’actions pour %1$s</string>
+    <string name="addon_manager_details">Détails</string>
+    <string name="addon_manager_details_close">Fermer</string>
 </resources>

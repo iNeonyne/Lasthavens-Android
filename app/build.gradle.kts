@@ -25,6 +25,7 @@ android {
     targetSdk = 36
     versionCode = providers.gradleProperty("appVersionCode").orElse("1").get().toInt()
     versionName = providers.gradleProperty("appVersionName").orElse("0.1.0").get()
+    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
     ndk {
       abiFilters += "arm64-v8a"
@@ -80,6 +81,12 @@ dependencies {
   implementation(libs.commons.compress)
 
   testImplementation(libs.junit)
+
+  androidTestImplementation(libs.androidx.test.runner)
+  androidTestImplementation(libs.androidx.test.ext.junit)
+  androidTestImplementation(platform(libs.androidx.compose.bom))
+  androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+  debugImplementation(libs.androidx.compose.ui.test.manifest)
 
   val composeBom = platform(libs.androidx.compose.bom)
   implementation(composeBom)

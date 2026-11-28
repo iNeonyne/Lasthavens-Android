@@ -336,65 +336,28 @@ class AddonRuntimePayloadProviderTest {
   @Test
   fun entryPointsListsValidatedTocLoadFilesPerAddon() = withRoot { root ->
     val coreDirectory =
-      writeAddon(
-        root,
         "DepCore",
-        mapOf(
           "DepCore.toc" to "## Interface: 30300\ncore.js\nmissing.lua\n".toByteArray(),
           "core.js" to byteArrayOf(1),
-        ),
-      )
     val uiDirectory =
-      writeAddon(
-        root,
         "UnitFrame",
-        mapOf(
           "UnitFrame.toc" to "## Interface: 30300\ninit.js\nskin.css\n".toByteArray(),
           "init.js" to byteArrayOf(1),
           "skin.css" to byteArrayOf(2),
-        ),
-      )
-    val snapshot =
-      AddonLibrarySnapshot(
-        "revision",
         listOf(item("DepCore", coreDirectory), item("UnitFrame", uiDirectory)),
-      )
     val provider = AddonRuntimePayloadProvider(AddonLibraryRepository(root))
     val manifest = provider.buildManifest(snapshot)
-
     val entryPoints = provider.entryPoints(manifest)
-
     assertEquals(listOf("core.js"), entryPoints["DepCore"])
     assertEquals(listOf("init.js", "skin.css"), entryPoints["UnitFrame"])
-  }
-
-  @Test
   fun entryPointsTreatsMissingOrMalformedTocAsEmptyWithoutFailing() = withRoot { root ->
     val bareDirectory = writeAddon(root, "BareAddon", mapOf("core.js" to byteArrayOf(1)))
     val garbageDirectory =
-      writeAddon(
-        root,
         "GarbageAddon",
-        mapOf(
           "GarbageAddon.toc" to "# only comments\n\n../escape.js\n".toByteArray(),
-          "core.js" to byteArrayOf(1),
-        ),
-      )
-    val snapshot =
-      AddonLibrarySnapshot(
-        "revision",
         listOf(item("BareAddon", bareDirectory), item("GarbageAddon", garbageDirectory)),
-      )
-    val provider = AddonRuntimePayloadProvider(AddonLibraryRepository(root))
-    val manifest = provider.buildManifest(snapshot)
-
-    val entryPoints = provider.entryPoints(manifest)
-
     assertEquals(emptyList<String>(), entryPoints["BareAddon"])
     assertEquals(emptyList<String>(), entryPoints["GarbageAddon"])
-  }
-
-  @Test
   fun revisionChangesWhenTheResourceInventoryChanges() = withRoot { root ->
     val directory = writeAddon(root, "UnitFrame", mapOf("init.lua" to byteArrayOf(1)))
     val provider = AddonRuntimePayloadProvider(AddonLibraryRepository(root))
