@@ -49,7 +49,7 @@ Update this file when strategic priorities, sequence or release direction change
 <!-- ROADMAP-LIVE-START -->
 ## Live issue and PR inventory
 
-Generated: 2026-11-28T17:35:32+00:00
+Generated: 2026-11-28T17:53:35+00:00
 Source of truth: live GitHub Issues, pull requests and labels. This section is generated automatically; do not edit it manually.
 
 Every open issue is listed below, grouped by its current priority. Opening a newer issue or PR does not supersede an older one. Duplicates and supersession must be explicitly reviewed and linked in GitHub.
@@ -63,7 +63,6 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 #### P1
 
 - [#28 — P1 — Measure game-origin storage accurately for Network & Storage](https://github.com/iNeonyne/LastHavenPlus/issues/28) — enhancement, P1, coderabbit-fix
-- [#244 — P1 — Make the game reload action reliably navigate and confirm completion](https://github.com/iNeonyne/LastHavenPlus/issues/244) — bug, P1, coderabbit-fix
 - [#248 — P1 — Native landscape UX, POCO X6 Pro layout and Android UI smoke coverage](https://github.com/iNeonyne/LastHavenPlus/issues/248) — enhancement, P1, coderabbit-fix
 
 #### P2
@@ -73,7 +72,6 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 - [#16 — P2 — Keep-awake preference for landscape-only gameplay](https://github.com/iNeonyne/LastHavenPlus/issues/16) — enhancement, P2
 - [#17 — P2 — Back up and restore launcher settings](https://github.com/iNeonyne/LastHavenPlus/issues/17) — enhancement, P2
 - [#184 — P2 — Move diagnostics log I/O off the Compose main thread](https://github.com/iNeonyne/LastHavenPlus/issues/184) — P2, performance, coderabbit-fix
-- [#219 — P2 — Redact URL credentials and standalone bearer tokens from diagnostics](https://github.com/iNeonyne/LastHavenPlus/issues/219) — bug, P2, coderabbit-fix
 - [#221 — P2 — Audit localization completeness and RTL layout behavior](https://github.com/iNeonyne/LastHavenPlus/issues/221) — enhancement, P2
 - [#223 — P2 — Confirm destructive clearing of local diagnostic logs](https://github.com/iNeonyne/LastHavenPlus/issues/223) — bug, P2
 - [#230 — P2 — Handle malformed updater installer handoff state without crashing](https://github.com/iNeonyne/LastHavenPlus/issues/230) — bug, P2
@@ -104,13 +102,17 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 
 - [#250 — ui: start landscape launcher redesign and POCO smoke coverage (#248)](https://github.com/iNeonyne/LastHavenPlus/pull/250) (beta <- chaty/native-landscape-ui-248)
 - [#255 — docs(addons): document the addon security trust model (#233)](https://github.com/iNeonyne/LastHavenPlus/pull/255) (beta <- vibe/addon-trust-docs-233)
+- [#257 — Show unavailable game storage when no origin estimate is accessible](https://github.com/iNeonyne/LastHavenPlus/pull/257) (beta <- coderabbit/game-origin-storage-28)
+- [#258 — Move diagnostics log I/O off the Compose main thread](https://github.com/iNeonyne/LastHavenPlus/pull/258) (beta <- coderabbit/issue-184-diagnostics-io)
 
 ### Recently completed (last 30 days)
 
 - [#245 — P0 — Diagnose and implement actual enabled-addon script injection](https://github.com/iNeonyne/LastHavenPlus/issues/245)
+- [#244 — P1 — Make the game reload action reliably navigate and confirm completion](https://github.com/iNeonyne/LastHavenPlus/issues/244)
 - [#229 — P1 — Cache page-side addon bundle clones by revision](https://github.com/iNeonyne/LastHavenPlus/issues/229)
 - [#228 — P1 — Reconcile addon import and runtime payload size limits](https://github.com/iNeonyne/LastHavenPlus/issues/228)
 - [#227 — P1 — Serialize addon library access and transaction recovery](https://github.com/iNeonyne/LastHavenPlus/issues/227)
+- [#219 — P2 — Redact URL credentials and standalone bearer tokens from diagnostics](https://github.com/iNeonyne/LastHavenPlus/issues/219)
 - [#218 — P2 — Ignore callbacks from replaced GeckoSessions](https://github.com/iNeonyne/LastHavenPlus/issues/218)
 - [#208 — Make GitHub the only live task queue and retire stale status snapshots](https://github.com/iNeonyne/LastHavenPlus/issues/208)
 - [#205 — Consolidate agent documentation and remove workflow duplication](https://github.com/iNeonyne/LastHavenPlus/issues/205)
