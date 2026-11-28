@@ -2,6 +2,7 @@ package com.neonyne.lasthavenlauncher
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -54,24 +55,77 @@ class GameSessionStateTest {
   }
 
   @Test
-  fun `decideReload reloads an open session in place`() {
-    assertEquals(
-      GameSessionReloadDecision.ReloadInPlace,
-      GameSessionActions.decideReload(state(hasSession = true, sessionOpen = true)),
-    )
+  fun `reload navigates in the open session from idle loading and failed states`() {
+    val idle = state(hasSession = true, sessionOpen = true, hasCompletedLoad = true)
+    val firstLoad = idle.copy(isLoading = true, hasCompletedLoad = false)
+    val failed = firstLoad.copy(isLoading = false, pageLoadFailed = true)
+    for (state in listOf(idle, firstLoad, failed)) {
+      assertEquals(GameSessionReloadDecision.ReloadInPlace, GameSessionActions.decideReload(state))
+    }
   }
 
   @Test
   fun `decideReload reopens and loads a closed session`() {
     assertEquals(
       GameSessionReloadDecision.ReopenAndLoad,
-      GameSessionActions.decideReload(state(hasSession = true, sessionOpen = false)),
+      GameSessionActions.decideReload(state(hasSession = true, hasLoadedGame = true)),
     )
   }
 
   @Test
-  fun `decideReload does nothing without a session`() {
-    assertEquals(GameSessionReloadDecision.Noop, GameSessionActions.decideReload(state()))
+  fun `reload creates a session when missing and replaces a crashed session`() {
+    for (state in listOf(state(), state(hasSession = true, sessionCrashed = true))) {
+      assertEquals(
+        GameSessionReloadDecision.CreateNewSession,
+        GameSessionActions.decideReload(state),
+      )
+    }
+  }
+
+  @Test
+  fun `reload must start the selected URL before successful completion`() {
+    val attempt = GameReloadAttempt(ALTERNATE_GAME_URL)
+    attempt.onPageStart(2, ALTERNATE_GAME_URL) // A previous load during bridge preparation.
+    assertTrue(attempt.requestNavigation(2))
+    assertNull(attempt.onPageStop(2, success = true))
+    attempt.onPageStart(2, DEFAULT_GAME_URL)
+    assertNull(attempt.onPageStop(2, success = true))
+    attempt.onPageStart(2, ALTERNATE_GAME_URL)
+    assertEquals(true, attempt.onPageStop(2, success = true))
+  }
+
+  @Test
+  fun `duplicate preparation completion cannot submit a second reload`() {
+    val attempt = GameReloadAttempt(DEFAULT_GAME_URL)
+    assertTrue(attempt.requestNavigation(2))
+    assertFalse(attempt.requestNavigation(2))
+    attempt.onPageStart(2, DEFAULT_GAME_URL)
+    assertEquals(false, attempt.onPageStop(2, success = false))
+    assertNull(attempt.onPageStop(2, success = true))
+  }
+
+  @Test
+  fun `replaced session callbacks cannot start finish or fail the current reload`() {
+    val attempt = GameReloadAttempt(DEFAULT_GAME_URL)
+    assertTrue(attempt.requestNavigation(2))
+    attempt.onPageStart(1, DEFAULT_GAME_URL)
+    assertNull(attempt.onPageStop(2, success = true))
+    attempt.onPageStart(2, DEFAULT_GAME_URL)
+    assertNull(attempt.onPageStop(1, success = false))
+    assertNull(attempt.onPageStop(1, success = true))
+    assertEquals(true, attempt.onPageStop(2, success = true))
+  }
+
+  @Test
+  fun `explicit reload shows loading even after a previous failure or successful load`() {
+    assertEquals(
+      GameLoadPresentation.LoadingGame,
+      state(hasSession = true, pageLoadFailed = true).copy(reloadInProgress = true).presentation,
+    )
+    assertEquals(
+      GameLoadPresentation.LoadingGame,
+      state(hasSession = true, hasCompletedLoad = true).copy(reloadInProgress = true).presentation,
+    )
   }
 
   @Test
@@ -93,12 +147,6 @@ class GameSessionStateTest {
   @Test
   fun `decideGameUrlChange does nothing when no session exists`() {
     assertEquals(GameSessionUrlChangeDecision.Noop, GameSessionActions.decideGameUrlChange(state()))
-  }
-
-  @Test
-  fun `shouldRestore recreates only an existing session`() {
-    assertTrue(GameSessionActions.shouldRestore(state(hasSession = true, sessionCrashed = true)))
-    assertFalse(GameSessionActions.shouldRestore(state()))
   }
 
   @Test
@@ -139,14 +187,6 @@ class GameSessionStateTest {
     assertFalse(next.isLoading)
     assertFalse(next.pageLoadFailed)
     assertTrue(next.sessionCrashed)
-  }
-
-  @Test
-  fun `onSessionCreated clears the navigation failure flag only`() {
-    val next =
-      GameSessionActions.onSessionCreated(state(pageLoadFailed = true, hasLoadedGame = true))
-    assertFalse(next.pageLoadFailed)
-    assertTrue(next.hasLoadedGame)
   }
 
   @Test
