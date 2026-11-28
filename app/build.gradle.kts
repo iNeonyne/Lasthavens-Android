@@ -14,6 +14,11 @@ val releaseSigningConfigured =
     !releaseKeyPassword.isNullOrBlank() &&
     file(releaseStoreFile).isFile
 
+// Compose instrumentation does not initialise GeckoView. On CI, omit Gecko's ARM64 native
+// libraries from the smoke-only APK so the same UI tests can run on a bootable x86_64 emulator.
+// Release/debug artifacts remain ARM64-only and keep all GeckoView binaries.
+val uiSmokeNoNativeLibs = providers.gradleProperty("uiSmokeNoNativeLibs").orNull == "true"
+
 android {
   namespace = "com.neonyne.lasthavenlauncher"
   compileSdk = 37
@@ -61,6 +66,9 @@ android {
   packaging {
     jniLibs {
       useLegacyPackaging = true
+      if (uiSmokeNoNativeLibs) {
+        excludes += "**/*.so"
+      }
     }
   }
 }
