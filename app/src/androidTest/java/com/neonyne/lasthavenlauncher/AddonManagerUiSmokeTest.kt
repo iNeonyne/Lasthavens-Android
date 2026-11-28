@@ -3,9 +3,11 @@ package com.neonyne.lasthavenlauncher
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNode
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -75,7 +77,9 @@ class AddonManagerUiSmokeTest {
       .onNodeWithContentDescription("More actions for Landscape Smoke Addon")
       .performClick()
     composeRule.onNodeWithText("Details").performClick()
-    composeRule.onNodeWithText("LandscapeSmoke · 1.0").assertIsDisplayed()
+    composeRule
+      .onNode(hasText("LandscapeSmoke · 1.0") and hasAnyAncestor(isDialog()))
+      .assertIsDisplayed()
     composeRule.onNodeWithText("Close").performClick()
 
     composeRule
