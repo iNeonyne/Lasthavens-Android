@@ -40,6 +40,8 @@ Download the ARM64 APK from the [latest release](https://github.com/iNeonyne/Las
 
 ## Project roadmap
 
+The [addon security trust model](docs/ADDON_SECURITY.md) explains the capabilities granted to enabled addons and the limits of launcher-side validation.
+
 The [roadmap](ROADMAP.md) combines curated strategic priorities with a generated live inventory of GitHub Issues and pull requests. The inventory updates automatically as issues, labels and PRs change; the strategic sequence remains intentionally concise. GitHub remains the source of truth for detailed scope and implementation status.
 
 ## Third-party notices
