@@ -2,7 +2,6 @@ package com.neonyne.lasthavenlauncher
 
 import android.content.Intent
 import android.content.SharedPreferences
-import android.content.pm.ActivityInfo
 import android.database.ContentObserver
 import android.net.Uri
 import android.os.Bundle
@@ -57,7 +56,7 @@ enum class Screen {
 
 class MainActivity : ComponentActivity() {
   private var pendingUpdateUri: Uri? = null
-  private var immersiveActive = false
+  private var appliedUiState: GameplayUiState? = null
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -69,7 +68,7 @@ class MainActivity : ComponentActivity() {
       LastHavenApp(
         preferences = preferences,
         onExit = { finish() },
-        onGameplayUiChanged = ::setGameplayUi,
+        onGameplayUiChanged = ::applyGameplayUi,
         onCheckUpdates = { callback -> AppUpdater.checkForUpdate(this, callback) },
         onDownloadUpdate = { update, preferDelta, onProgress, callback ->
           AppUpdater.downloadUpdate(this, update, preferDelta, callback, onProgress)
@@ -79,36 +78,38 @@ class MainActivity : ComponentActivity() {
     }
   }
 
-  private fun setGameplayUi(gameplay: Boolean, immersive: Boolean) {
-    immersiveActive = immersive
-    WindowCompat.setDecorFitsSystemWindows(window, !gameplay)
-    requestedOrientation =
-      if (gameplay) {
-        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-      } else {
-        ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+  /**
+   * Single Activity/window boundary for app-window presentation (issue #148): every orientation,
+   * keep-awake and system-bar effect is derived from one immutable [GameplayUiState].
+   */
+  private fun applyGameplayUi(state: GameplayUiState) {
+    appliedUiState = state
+    WindowCompat.setDecorFitsSystemWindows(window, GameplayUiPolicy.decorFitsSystemWindows(state))
+    requestedOrientation = GameplayUiPolicy.orientation(state)
+    if (GameplayUiPolicy.keepScreenOn(state)) {
+      window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    } else {
+      window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+    if (GameplayUiPolicy.systemBarsVisible(state)) {
+      window.statusBarColor = GameplayUiPolicy.systemBarColorArgb
+      window.navigationBarColor = GameplayUiPolicy.systemBarColorArgb
+      WindowInsetsControllerCompat(window, window.decorView).apply {
+        isAppearanceLightStatusBars = GameplayUiPolicy.lightSystemBars(state)
+        isAppearanceLightNavigationBars = GameplayUiPolicy.lightSystemBars(state)
+        show(WindowInsetsCompat.Type.systemBars())
       }
-    if (gameplay) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-    else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-    if (immersive) {
+    } else {
       WindowInsetsControllerCompat(window, window.decorView).apply {
         hide(WindowInsetsCompat.Type.systemBars())
         systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-      }
-    } else {
-      window.statusBarColor = android.graphics.Color.rgb(8, 13, 24)
-      window.navigationBarColor = android.graphics.Color.rgb(8, 13, 24)
-      WindowInsetsControllerCompat(window, window.decorView).apply {
-        isAppearanceLightStatusBars = false
-        isAppearanceLightNavigationBars = false
-        show(WindowInsetsCompat.Type.systemBars())
       }
     }
   }
 
   override fun onWindowFocusChanged(hasFocus: Boolean) {
     super.onWindowFocusChanged(hasFocus)
-    if (hasFocus && immersiveActive) setGameplayUi(true, true)
+    GameplayUiPolicy.onWindowFocus(appliedUiState, hasFocus)?.let(::applyGameplayUi)
   }
 
   private fun installUpdate(uri: Uri) {
@@ -204,7 +205,7 @@ class MainActivity : ComponentActivity() {
 private fun LastHavenApp(
   preferences: SharedPreferences,
   onExit: () -> Unit,
-  onGameplayUiChanged: (Boolean, Boolean) -> Unit,
+  onGameplayUiChanged: (GameplayUiState) -> Unit,
   onCheckUpdates: ((UpdateCheckResult) -> Unit) -> Unit,
   onDownloadUpdate:
     (AppUpdateInfo, Boolean, (UpdateProgressState) -> Unit, (Result<Uri>) -> Unit) -> Unit,
@@ -329,12 +330,14 @@ private fun LastHavenApp(
     navigate(LauncherNavigationPolicy.openSettings(navigation, returnTo))
   }
 
-  val gameplayActive = LauncherNavigationPolicy.isGameplay(navigation.screen)
-  val immersiveGameplay =
-    LauncherNavigationPolicy.isImmersiveGameplay(navigation.screen, navigation.menuVisible)
-  SideEffect { onGameplayUiChanged(gameplayActive, immersiveGameplay) }
+  val gameplayUiState =
+    GameplayUiPolicy.fromNavigation(
+      LauncherNavigationPolicy.isGameplay(navigation.screen),
+      LauncherNavigationPolicy.isImmersiveGameplay(navigation.screen, navigation.menuVisible),
+    )
+  SideEffect { onGameplayUiChanged(gameplayUiState) }
   DisposableEffect(Unit) {
-    onDispose { onGameplayUiChanged(false, false) }
+    onDispose { onGameplayUiChanged(GameplayUiState.Chrome) }
   }
 
   LaunchedEffect(Unit) {

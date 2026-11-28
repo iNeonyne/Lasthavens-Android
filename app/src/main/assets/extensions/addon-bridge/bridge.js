@@ -330,7 +330,7 @@
               if (pageBundleClone === null) {
                 // cloneInto uses structured cloning, which does not retain property
                 // descriptors. Re-freeze the page-realm copy (including nested file maps) so
-                // caching cannot turn one caller's mutation into stale data for later requests.
+                // cached page callers cannot mutate the shared payload.
                 pageBundleClone = deepFreezePageClone(cloneInto(currentBundle, targetWindow));
               }
               return pageBundleClone;
