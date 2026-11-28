@@ -41,6 +41,21 @@ internal object UpdateManifestPolicy {
     }
   }
 
+  fun <T> optionalPatch(onInvalid: (String) -> Unit, parse: () -> T?): T? =
+    try {
+      parse()
+    } catch (error: Exception) {
+      // Decoder and URL exception messages may contain release-controlled values.
+      val reason =
+        when (error) {
+          is IllegalStateException -> "inconsistent release metadata"
+          is IllegalArgumentException -> "invalid field value"
+          else -> "unreadable field"
+        }
+      onInvalid("Differential patch metadata rejected ($reason). Using the full APK.")
+      null
+    }
+
   fun isPatchCompatible(
     currentVersion: String,
     installedVersionCode: Long,

@@ -66,6 +66,29 @@ class UpdateManifestPolicyTest {
     assertFalse(UpdateManifestPolicy.isPatchCompatible("1.0.0", 1_000_000, "1.0.0", 999_999))
   }
 
+  @Test
+  fun invalidPatchFallsBackWithRedactedReason() {
+    val messages = mutableListOf<String>()
+    val patch =
+      UpdateManifestPolicy.optionalPatch<String>(messages::add) {
+        error("Missing private-asset-name at https://example.invalid/?token=secret")
+      }
+    org.junit.Assert.assertNull(patch)
+    assertEquals(
+      listOf(
+        "Differential patch metadata rejected (inconsistent release metadata). Using the full APK."
+      ),
+      messages,
+    )
+  }
+
+  @Test
+  fun optionalPatchPreservesValidAndAbsentResultsWithoutWarnings() {
+    val onInvalid: (String) -> Unit = { throw AssertionError(it) }
+    assertEquals("delta", UpdateManifestPolicy.optionalPatch(onInvalid) { "delta" })
+    org.junit.Assert.assertNull(UpdateManifestPolicy.optionalPatch<String>(onInvalid) { null })
+  }
+
   private fun validate(
     schemaVersion: Int = 1,
     manifestVersion: String = "1.1.0",
