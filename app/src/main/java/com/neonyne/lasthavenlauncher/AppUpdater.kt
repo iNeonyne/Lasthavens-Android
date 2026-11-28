@@ -55,7 +55,6 @@ sealed class UpdateCheckResult {
 object AppUpdater {
   private const val RELEASE_API =
     "https://api.github.com/repos/iNeonyne/LastHavenPlus/releases/latest"
-  private const val APK_ASSET_NAME = "lasthavenplus-arm64.apk"
   private const val MANIFEST_ASSET_NAME = "lasthavenplus-update.json"
   private const val MAX_APK_BYTES = 500L * 1024L * 1024L
   private const val MAX_PATCH_BYTES = 500L * 1024L * 1024L
@@ -170,8 +169,9 @@ object AppUpdater {
                 }
 
               val target = manifest.getJSONObject("apk")
-              val fullAsset =
-                assetByName[APK_ASSET_NAME] ?: error("Release is missing $APK_ASSET_NAME")
+              val apkName = target.getString("name")
+              val expectedApkName = UpdateManifestPolicy.apkAssetName(latestVersion)
+              val fullAsset = assetByName[apkName] ?: error("Release is missing $apkName")
               val fullUrl = requireGithubUrl(fullAsset.getString("browser_download_url"))
               val fullSha = requireSha256(target.getString("sha256"))
               val apiDigest = fullAsset.optString("digest")
@@ -190,8 +190,8 @@ object AppUpdater {
                 versionCode = versionCode,
                 expectedVersionCode = latestVersionCode,
                 installedVersionCode = packageInfo.longVersionCode,
-                apkName = target.getString("name"),
-                expectedApkName = APK_ASSET_NAME,
+                apkName = apkName,
+                expectedApkName = expectedApkName,
                 apkSize = targetSize,
                 releaseAssetSize = fullAsset.getLong("size"),
                 maximumApkBytes = MAX_APK_BYTES,
