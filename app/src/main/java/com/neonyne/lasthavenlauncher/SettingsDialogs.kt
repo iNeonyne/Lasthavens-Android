@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -223,13 +224,109 @@ fun SettingsScreen(
   }
 }
 
-
 @Composable
 private fun SettingsNavigationFrame(
   selected: SettingsDestination,
   onSelect: (SettingsDestination) -> Unit,
   onBack: () -> Unit,
-  content: @Composable
+  content: @Composable () -> Unit,
+) {
+  BoxWithConstraints(
+    modifier = Modifier.fillMaxSize().background(DesignTokens.ink).padding(12.dp),
+  ) {
+    val railWidth = if (maxWidth < 680.dp) 148.dp else 184.dp
+    Row(
+      modifier = Modifier.fillMaxSize(),
+      horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+      Surface(
+        modifier = Modifier.width(railWidth).fillMaxHeight(),
+        color = DesignTokens.panel,
+        shape = MaterialTheme.shapes.large,
+      ) {
+        Column(
+          modifier = Modifier.fillMaxSize().padding(10.dp),
+          verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+          Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp)) {
+            Text(
+              stringResource(R.string.settings_title),
+              color = DesignTokens.textPrimary,
+              style = MaterialTheme.typography.titleLarge,
+              fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+              stringResource(R.string.settings_brand_mark),
+              color = DesignTokens.frost,
+              style = MaterialTheme.typography.labelSmall,
+            )
+          }
+          SettingsDestination.entries.forEach { destination ->
+            val isSelected = destination == selected
+            Row(
+              modifier =
+                Modifier.fillMaxWidth()
+                  .clip(MaterialTheme.shapes.medium)
+                  .background(
+                    if (isSelected) MaterialTheme.colorScheme.secondaryContainer
+                    else androidx.compose.ui.graphics.Color.Transparent,
+                  )
+                  .clickable { onSelect(destination) }
+                  .padding(horizontal = 10.dp, vertical = 12.dp),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+              Icon(
+                painter = painterResource(destination.iconRes),
+                contentDescription = null,
+                tint =
+                  if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                  else DesignTokens.textSecondary,
+                modifier = Modifier.width(20.dp),
+              )
+              Text(
+                stringResource(destination.titleRes),
+                color =
+                  if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                  else DesignTokens.textSecondary,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 2,
+              )
+            }
+          }
+          Spacer(Modifier.weight(1f))
+          TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.action_back))
+          }
+        }
+      }
+      Column(
+        modifier =
+          Modifier.weight(1f)
+            .fillMaxHeight()
+            .clip(MaterialTheme.shapes.large)
+            .background(DesignTokens.panel.copy(alpha = 0.55f))
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+      ) {
+        Text(
+          stringResource(selected.titleRes),
+          color = DesignTokens.textPrimary,
+          style = MaterialTheme.typography.headlineSmall,
+          fontWeight = FontWeight.SemiBold,
+        )
+        Column(
+          modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
+          verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+          content()
+        }
+      }
+    }
+  }
+}
+
+@Composable
 fun DiagnosticsScreen(
   context: Context,
   onBack: () -> Unit,
@@ -499,106 +596,7 @@ internal fun UpdateScreen(
   }
 }
 
-
-
-@Composable () -> Unit,
-) {
-  BoxWithConstraints(
-    modifier = Modifier.fillMaxSize().background(DesignTokens.ink).padding(12.dp),
-  ) {
-    val railWidth = if (maxWidth < 680.dp) 148.dp else 184.dp
-    Row(
-      modifier = Modifier.fillMaxSize(),
-      horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-      Surface(
-        modifier = Modifier.width(railWidth).fillMaxHeight(),
-        color = DesignTokens.panel,
-        shape = MaterialTheme.shapes.large,
-      ) {
-        Column(
-          modifier = Modifier.fillMaxSize().padding(10.dp),
-          verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-          Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp)) {
-            Text(
-              stringResource(R.string.settings_title),
-              color = DesignTokens.textPrimary,
-              style = MaterialTheme.typography.titleLarge,
-              fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-              stringResource(R.string.settings_brand_mark),
-              color = DesignTokens.frost,
-              style = MaterialTheme.typography.labelSmall,
-            )
-          }
-          SettingsDestination.entries.forEach { destination ->
-            val isSelected = destination == selected
-            Row(
-              modifier =
-                Modifier.fillMaxWidth()
-                  .clip(MaterialTheme.shapes.medium)
-                  .background(
-                    if (isSelected) MaterialTheme.colorScheme.secondaryContainer
-                    else androidx.compose.ui.graphics.Color.Transparent,
-                  )
-                  .clickable { onSelect(destination) }
-                  .padding(horizontal = 10.dp, vertical = 12.dp),
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-              Icon(
-                painter = painterResource(destination.iconRes),
-                contentDescription = null,
-                tint =
-                  if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
-                  else DesignTokens.textSecondary,
-                modifier = Modifier.width(20.dp),
-              )
-              Text(
-                stringResource(destination.titleRes),
-                color =
-                  if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
-                  else DesignTokens.textSecondary,
-                style = MaterialTheme.typography.labelLarge,
-                maxLines = 2,
-              )
-            }
-          }
-          Spacer(Modifier.weight(1f))
-          TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.action_back))
-          }
-        }
-      }
-      Column(
-        modifier =
-          Modifier.weight(1f)
-            .fillMaxHeight()
-            .clip(MaterialTheme.shapes.large)
-            .background(DesignTokens.panel.copy(alpha = 0.55f))
-            .padding(horizontal = 18.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-      ) {
-        Text(
-          stringResource(selected.titleRes),
-          color = DesignTokens.textPrimary,
-          style = MaterialTheme.typography.headlineSmall,
-          fontWeight = FontWeight.SemiBold,
-        )
-        Column(
-          modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
-          verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-          content()
-        }
-      }
-    }
-  }
-}
-
-
+@Composable
 private fun SettingsPageFrame(
   title: String,
   onBack: () -> Unit,
