@@ -49,7 +49,7 @@ Update this file when strategic priorities, sequence or release direction change
 <!-- ROADMAP-LIVE-START -->
 ## Live issue and PR inventory
 
-Generated: 2026-11-28T17:19:18+00:00
+Generated: 2026-11-28T17:30:11+00:00
 Source of truth: live GitHub Issues, pull requests and labels. This section is generated automatically; do not edit it manually.
 
 Every open issue is listed below, grouped by its current priority. Opening a newer issue or PR does not supersede an older one. Duplicates and supersession must be explicitly reviewed and linked in GitHub.
@@ -74,7 +74,6 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 - [#17 — P2 — Back up and restore launcher settings](https://github.com/iNeonyne/LastHavenPlus/issues/17) — enhancement, P2
 - [#182 — P2 — Close BSDIFF section streams when later initialization fails](https://github.com/iNeonyne/LastHavenPlus/issues/182) — bug, P2, coderabbit-fix
 - [#184 — P2 — Move diagnostics log I/O off the Compose main thread](https://github.com/iNeonyne/LastHavenPlus/issues/184) — P2, performance
-- [#218 — P2 — Ignore callbacks from replaced GeckoSessions](https://github.com/iNeonyne/LastHavenPlus/issues/218) — bug, P2
 - [#219 — P2 — Redact URL credentials and standalone bearer tokens from diagnostics](https://github.com/iNeonyne/LastHavenPlus/issues/219) — bug, P2
 - [#221 — P2 — Audit localization completeness and RTL layout behavior](https://github.com/iNeonyne/LastHavenPlus/issues/221) — enhancement, P2
 - [#223 — P2 — Confirm destructive clearing of local diagnostic logs](https://github.com/iNeonyne/LastHavenPlus/issues/223) — bug, P2
@@ -105,7 +104,6 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 ### Open pull requests
 
 - [#250 — ui: start landscape launcher redesign and POCO smoke coverage (#248)](https://github.com/iNeonyne/LastHavenPlus/pull/250) (beta <- chaty/native-landscape-ui-248)
-- [#254 — fix(session): ignore GeckoView callbacks from replaced sessions (#218)](https://github.com/iNeonyne/LastHavenPlus/pull/254) (beta <- vibe/session-callback-guard-218)
 - [#255 — docs(addons): document the addon security trust model (#233)](https://github.com/iNeonyne/LastHavenPlus/pull/255) (beta <- vibe/addon-trust-docs-233)
 
 ### Recently completed (last 30 days)
@@ -114,12 +112,14 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 - [#229 — P1 — Cache page-side addon bundle clones by revision](https://github.com/iNeonyne/LastHavenPlus/issues/229)
 - [#228 — P1 — Reconcile addon import and runtime payload size limits](https://github.com/iNeonyne/LastHavenPlus/issues/228)
 - [#227 — P1 — Serialize addon library access and transaction recovery](https://github.com/iNeonyne/LastHavenPlus/issues/227)
+- [#218 — P2 — Ignore callbacks from replaced GeckoSessions](https://github.com/iNeonyne/LastHavenPlus/issues/218)
 - [#208 — Make GitHub the only live task queue and retire stale status snapshots](https://github.com/iNeonyne/LastHavenPlus/issues/208)
 - [#205 — Consolidate agent documentation and remove workflow duplication](https://github.com/iNeonyne/LastHavenPlus/issues/205)
 - [#188 — P2 — Audit and update stable Android dependencies](https://github.com/iNeonyne/LastHavenPlus/issues/188)
 - [#186 — P2 — Confirm GeckoView top-level navigation policy for the launcher](https://github.com/iNeonyne/LastHavenPlus/issues/186)
 - [#185 — P2 — Reconcile ownership-label automation with the project ownership contract](https://github.com/iNeonyne/LastHavenPlus/issues/185)
 - [#183 — P2 — Disconnect stale addon bridge ports when GeckoSession changes](https://github.com/iNeonyne/LastHavenPlus/issues/183)
+- [#182 — P2 — Close BSDIFF section streams when later initialization fails](https://github.com/iNeonyne/LastHavenPlus/issues/182)
 - [#181 — P2 — Remove obsolete verified updater APKs safely](https://github.com/iNeonyne/LastHavenPlus/issues/181)
 - [#178 — Documentation maintenance — reconcile project records and add a recurring checklist](https://github.com/iNeonyne/LastHavenPlus/issues/178)
 - [#170 — P1 — Integrate addon manager navigation and verify same-session runtime behavior](https://github.com/iNeonyne/LastHavenPlus/issues/170)
