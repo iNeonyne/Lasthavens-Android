@@ -30,6 +30,7 @@ class GameSessionController {
     private set
 
   private var runtime: GeckoRuntime? = null
+  private val callbackGate = GameSessionCallbackGate()
   private var isLoading by mutableStateOf(false)
   private var pageLoadFailed by mutableStateOf(false)
   private var sessionCrashed by mutableStateOf(false)
@@ -57,7 +58,8 @@ class GameSessionController {
       is GameSessionStartDecision.CreateNewSession -> {
         val gameRuntime = obtainRuntime(context)
         val gameSession = GeckoSession()
-        setupGeckoDelegates(gameSession, context)
+        val callbackGeneration = callbackGate.advance()
+        setupGeckoDelegates(gameSession, context, callbackGeneration)
         gameSession.open(gameRuntime)
         session = gameSession
         onSessionReady(gameSession)
@@ -153,15 +155,23 @@ class GameSessionController {
     hasCompletedLoad = next.hasCompletedLoad
   }
 
-  private fun setupGeckoDelegates(geckoSession: GeckoSession, context: Context) {
+  private fun setupGeckoDelegates(
+    geckoSession: GeckoSession,
+    context: Context,
+    callbackGeneration: Int,
+  ) {
+    fun isStaleSessionCallback(): Boolean = !callbackGate.accepts(callbackGeneration)
+
     geckoSession.setProgressDelegate(
       object : GeckoSession.ProgressDelegate {
         override fun onPageStart(session: GeckoSession, url: String) {
+          if (isStaleSessionCallback()) return
           transition(GameSessionActions::onPageStart)
           Diagnostics.info(context, TAG, "GeckoView page started")
         }
 
         override fun onPageStop(session: GeckoSession, success: Boolean) {
+          if (isStaleSessionCallback()) return
           transition { GameSessionActions.onPageStop(it, success) }
           if (!success) {
             Diagnostics.warn(context, TAG, "GeckoView page load failed")
@@ -172,11 +182,13 @@ class GameSessionController {
     geckoSession.setContentDelegate(
       object : GeckoSession.ContentDelegate {
         override fun onCrash(session: GeckoSession) {
+          if (isStaleSessionCallback()) return
           transition(GameSessionActions::onProcessFailure)
           Diagnostics.error(context, TAG, "GeckoView content process crashed")
         }
 
         override fun onKill(session: GeckoSession) {
+          if (isStaleSessionCallback()) return
           transition(GameSessionActions::onProcessFailure)
           Diagnostics.error(context, TAG, "GeckoView content process was killed")
         }
