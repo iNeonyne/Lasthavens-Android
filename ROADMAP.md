@@ -49,7 +49,7 @@ Update this file when strategic priorities, sequence or release direction change
 <!-- ROADMAP-LIVE-START -->
 ## Live issue and PR inventory
 
-Generated: 2026-11-28T18:49:10+00:00
+Generated: 2026-11-28T18:49:21+00:00
 Source of truth: live GitHub Issues, pull requests and labels. This section is generated automatically; do not edit it manually.
 
 Every open issue is listed below, grouped by its current priority. Opening a newer issue or PR does not supersede an older one. Duplicates and supersession must be explicitly reviewed and linked in GitHub.
@@ -59,9 +59,12 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 #### P0
 
 - [#4 — P0.1 — Improve build reproducibility and updater test coverage](https://github.com/iNeonyne/LastHavenPlus/issues/4) — bug, P0.1, P0
+- [#23 — P0 — Complete Addon Manager ZIP 0.5.1 Phase B for GeckoView](https://github.com/iNeonyne/LastHavenPlus/issues/23) — enhancement, P0
+- [#31 — P0 — Fix draft release asset verification and verify differential fallback](https://github.com/iNeonyne/LastHavenPlus/issues/31) — bug, P0
 
 #### P1
 
+- [#19 — P1 — Add an opt-in beta release channel to the updater](https://github.com/iNeonyne/LastHavenPlus/issues/19) — enhancement, P1
 - [#248 — P1 — Native landscape UX, POCO X6 Pro layout and Android UI smoke coverage](https://github.com/iNeonyne/LastHavenPlus/issues/248) — enhancement, P1, coderabbit-fix
 
 #### P2
@@ -92,10 +95,7 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 
 #### Unprioritized
 
-- [#19 — P1 — Add an opt-in beta release channel to the updater](https://github.com/iNeonyne/LastHavenPlus/issues/19) — enhancement
-- [#23 — P0 — Complete Addon Manager ZIP 0.5.1 Phase B for GeckoView](https://github.com/iNeonyne/LastHavenPlus/issues/23) — enhancement
-- [#31 — P0 — Fix draft release asset verification and verify differential fallback](https://github.com/iNeonyne/LastHavenPlus/issues/31) — bug
-- [#67 — Repository: reserve original project rights and complete third-party notices](https://github.com/iNeonyne/LastHavenPlus/issues/67)
+- [#67 — Repository: reserve original project rights and complete third-party notices](https://github.com/iNeonyne/LastHavenPlus/issues/67) — documentation
 
 ### Open pull requests
 
