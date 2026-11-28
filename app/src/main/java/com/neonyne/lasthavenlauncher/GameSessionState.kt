@@ -1,6 +1,24 @@
 package com.neonyne.lasthavenlauncher
 
 /**
+ * Rejects stale GeckoView callbacks from a replaced game session (issue #218). The controller
+ * advances the generation every time a new session is created; delegates capture the generation
+ * active at attach time and each callback is accepted only while that generation is still current.
+ */
+class GameSessionCallbackGate(initialGeneration: Int = 0) {
+  private var currentGeneration: Int = initialGeneration
+
+  val generation: Int
+    get() = currentGeneration
+
+  /** Registers a replacement session and returns its callback generation. */
+  fun advance(): Int = ++currentGeneration
+
+  /** True only for callbacks that belong to the current session generation. */
+  fun accepts(callbackGeneration: Int): Boolean = callbackGeneration == currentGeneration
+}
+
+/**
  * Immutable snapshot of the game-session state rendered by the composition root.
  * [hasSession]/[sessionOpen] mirror the live GeckoSession; the remaining fields mirror the
  * GeckoView load/process signals observed so far.
