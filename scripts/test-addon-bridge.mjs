@@ -206,3 +206,50 @@ test("deep-freezes the payload and nested addon file maps", () => {
   assert.equal(Object.isFrozen(payload.addons[0]), true);
   assert.equal(Object.isFrozen(payload.addons[0].files), true);
 });
+
+const bridgeSourcePath = new URL(
+  "../app/src/main/assets/extensions/addon-bridge/bridge.js",
+  import.meta.url,
+);
+const bridgeSource = readFileSync(fileURLToPath(bridgeSourcePath), "utf8");
+
+test("the page bundle getter clones once per revision and publishes a revision getter", () => {
+  assert.equal(bridgeSource.includes("pageBundleClone"), true);
+  assert.equal(
+    bridgeSource.includes("pageBundleClone = deepFreezePageClone(cloneInto(currentBundle, targetWindow))"),
+    true,
+    "getBundle must reuse one cached page-realm clone per revision",
+  );
+  assert.equal(
+    bridgeSource.includes("pageBundleClone = null;\n        ready = true;"),
+    true,
+    "a freshly fetched bundle revision must invalidate the cached clone",
+  );
+  assert.equal(
+    bridgeSource.includes("getRevision: exportFunction("),
+    true,
+    "the page bridge must expose a cheap revision getter for readiness checks",
+  );
+});
+
+test("the page-realm cached clone is recursively frozen after structured cloning", () => {
+  assert.equal(bridgeSource.includes("function deepFreezePageClone(value, seen)"), true);
+  assert.equal(
+    bridgeSource.includes("pageBundleClone = deepFreezePageClone(cloneInto(currentBundle, targetWindow))"),
+    true,
+    "structured-clone descriptors must be re-frozen before exposing the cached object",
+  );
+});
+
+test("the overlay checks the bridge revision before cloning the payload", () => {
+  const overlayPath = new URL(
+    "../app/src/main/assets/extensions/addon-bridge/xhr-overlay.js",
+    import.meta.url,
+  );
+  const overlaySource = readFileSync(fileURLToPath(overlayPath), "utf8");
+  assert.equal(
+    overlaySource.includes("bridge.getRevision()"),
+    true,
+    "readiness checks must consult the cheap revision getter first",
+  );
+});

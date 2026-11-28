@@ -40,10 +40,26 @@
   }
 
   let currentBundle = null;
+  let pageBundleClone = null;
   let ready = false;
   let errorCode = null;
   let currentPlan = null;
   let planError = null;
+
+  function deepFreezePageClone(value, seen) {
+    if (value === null || typeof value !== "object") {
+      return value;
+    }
+    const visited = seen || new WeakSet();
+    if (visited.has(value)) {
+      return value;
+    }
+    visited.add(value);
+    for (const key of Object.keys(value)) {
+      deepFreezePageClone(value[key], visited);
+    }
+    return Object.freeze(value);
+  }
 
   function isSafeFolder(folder) {
     return typeof folder === "string" &&
@@ -305,7 +321,24 @@
       const pageBridge = cloneInto(
         {
           getBundle: exportFunction(
-            () => currentBundle === null ? null : cloneInto(currentBundle, targetWindow),
+            () => {
+              if (currentBundle === null) {
+                return null;
+              }
+              // One page-realm clone per payload revision (issue #229): the bundle is deep
+              // frozen and read-only, so the same clone is reused until the revision changes.
+              if (pageBundleClone === null) {
+                // cloneInto uses structured cloning, which does not retain property
+                // descriptors. Re-freeze the page-realm copy (including nested file maps) so
+                // caching cannot turn one caller's mutation into stale data for later requests.
+                pageBundleClone = deepFreezePageClone(cloneInto(currentBundle, targetWindow));
+              }
+              return pageBundleClone;
+            },
+            targetWindow,
+          ),
+          getRevision: exportFunction(
+            () => (currentBundle === null ? null : currentBundle.revision),
             targetWindow,
           ),
           getBootstrapPlan: exportFunction(
@@ -347,6 +380,7 @@
           throw new Error("invalidPayload");
         }
         currentBundle = core.deepFreeze(payload);
+        pageBundleClone = null;
         ready = true;
         return;
       } catch (error) {

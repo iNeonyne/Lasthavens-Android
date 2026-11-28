@@ -1331,7 +1331,210 @@ test("an aborted XHR can be reused for a fresh request", async () => {
   assert.equal(xhr.responseText, "reused");
 });
 
+function loadWrapperWithBridge(bridge) {
+  const { context, XHR } = loadWrapper({});
+  context.__LASTHAVEN_ADDON_BRIDGE__ = bridge;
+  vm.runInContext(
+    "this.__LASTHAVEN_ADDON_BRIDGE__ = __LASTHAVEN_ADDON_BRIDGE__",
+    context,
+  );
+  return { context, XHR };
+}
+
+function makeCountingBridge(payload, { revision, cloneDeep = true } = {}) {
+  const counts = { getBundle: 0, getState: 0, getRevision: 0 };
+  const bridge = {
+    getRevision: () => {
+      counts.getRevision += 1;
+      return revision === undefined ? payload.revision : revision;
+    },
+    getBundle: () => {
+      counts.getBundle += 1;
+      if (payload === null) return null;
+      return cloneDeep ? JSON.parse(JSON.stringify(payload)) : payload;
+    },
+    getState: () => {
+      counts.getState += 1;
+      return { ready: revision !== null, error: null };
+    },
+  };
+  return { bridge, counts };
+}
+
+test("repeated requests for one revision clone the payload only once", async () => {
+  const payload = makePayloadWithFiles({ "bar.lua": "shared" });
+  const { bridge, counts } = makeCountingBridge(payload);
+  const { context } = loadWrapperWithBridge(bridge);
+  for (let index = 0; index < 4; index += 1) {
+    const xhr = new context.XMLHttpRequest();
+    xhr.open("GET", "https://lasthavens.com/game/Interface/AddOns/Foo/bar.lua");
+    xhr.send();
+    await sleep(25);
+    assert.equal(xhr.status, 200);
+    assert.equal(xhr.responseText, "shared");
+  }
+  assert.equal(counts.getBundle, 1);
+});
+
+test("a replaced bridge with a new revision re-clones and never returns stale data", async () => {
+  const payloadA = makePayloadWithFiles({ "bar.lua": "content-a" });
+  const a = makeCountingBridge(payloadA);
+  const { context } = loadWrapperWithBridge(a.bridge);
+  const first = new context.XMLHttpRequest();
+  first.open("GET", "https://lasthavens.com/game/Interface/AddOns/Foo/bar.lua");
+  first.send();
+  await sleep(25);
+  assert.equal(first.responseText, "content-a");
+  assert.equal(a.counts.getBundle, 1);
+
+  const payloadB = makePayloadWithFiles({ "bar.lua": "content-b", "extra.lua": "extra" });
+  payloadB.revision = "b".repeat(64);
+  const b = makeCountingBridge(payloadB);
+  context.__LASTHAVEN_ADDON_BRIDGE__ = b.bridge;
+  vm.runInContext(
+    "this.__LASTHAVEN_ADDON_BRIDGE__ = __LASTHAVEN_ADDON_BRIDGE__",
+    context,
+  );
+  const second = new context.XMLHttpRequest();
+  second.open("GET", "https://lasthavens.com/game/Interface/AddOns/Foo/bar.lua");
+  second.send();
+  await sleep(25);
+  assert.equal(second.responseText, "content-b");
+  assert.equal(b.counts.getBundle, 1);
+
+  const third = new context.XMLHttpRequest();
+  third.open("GET", "https://lasthavens.com/game/Interface/AddOns/Foo/extra.lua");
+  third.send();
+  await sleep(25);
+  assert.equal(third.status, 200);
+  assert.equal(third.responseText, "extra");
+  assert.equal(b.counts.getBundle, 1);
+});
+
+test("the readiness poll resolves from the cached revision without cloning", async () => {
+  const payload = makePayloadWithFiles({ "bar.lua": "polled" });
+  let revision = null;
+  const { bridge, counts } = makeCountingBridge(payload);
+  const originalGetRevision = bridge.getRevision;
+  bridge.getRevision = () => {
+    counts.getRevision += 1;
+    return revision;
+  };
+  bridge.getBundle = () => {
+    counts.getBundle += 1;
+    return revision === null ? null : JSON.parse(JSON.stringify(payload));
+  };
+  bridge.getState = () => ({ ready: revision !== null, error: null });
+  const { context } = loadWrapperWithBridge(bridge);
+
+  const xhr = new context.XMLHttpRequest();
+  xhr.open("GET", "https://lasthavens.com/game/Interface/AddOns/Foo/bar.lua");
+  xhr.send();
+  await sleep(120);
+  assert.equal(xhr.status, 0, "the request must still be waiting while the bridge is not ready");
+  assert.equal(counts.getBundle, 0, "polls must not clone while no revision is published");
+
+  revision = payload.revision;
+  await sleep(150);
+  assert.equal(xhr.status, 200);
+  assert.equal(xhr.responseText, "polled");
+  assert.equal(counts.getBundle, 1, "the poll must clone exactly once when the revision appears");
+  void originalGetRevision;
+
+  const second = new context.XMLHttpRequest();
+  second.open("GET", "https://lasthavens.com/game/Interface/AddOns/Foo/bar.lua");
+  second.send();
+  await sleep(25);
+  assert.equal(second.responseText, "polled");
+  assert.equal(counts.getBundle, 1, "cached revisions must not clone again");
+});
+
+test("a torn-down bridge that stops publishing its revision fails closed", async () => {
+  const payload = makePayloadWithFiles({ "bar.lua": "gone" });
+  let revision = payload.revision;
+  let bundle = payload;
+  let clones = 0;
+  const bridge = {
+    getRevision: () => revision,
+    getBundle: () => {
+      clones += 1;
+      return bundle === null ? null : JSON.parse(JSON.stringify(bundle));
+    },
+    getState: () => ({ ready: bundle !== null, error: null }),
+  };
+  let fakeNow = 0;
+  const { context } = loadWrapper({
+    dateNow: () => {
+      fakeNow += 25000;
+      return fakeNow;
+    },
+  });
+  context.__LASTHAVEN_ADDON_BRIDGE__ = bridge;
+  vm.runInContext(
+    "this.__LASTHAVEN_ADDON_BRIDGE__ = __LASTHAVEN_ADDON_BRIDGE__",
+    context,
+  );
+
+  const first = new context.XMLHttpRequest();
+  first.open("GET", "https://lasthavens.com/game/Interface/AddOns/Foo/bar.lua");
+  first.send();
+  await sleep(25);
+  assert.equal(first.responseText, "gone");
+  assert.equal(clones, 1);
+
+  revision = null;
+  bundle = null;
+  const second = new context.XMLHttpRequest();
+  second.open("GET", "https://lasthavens.com/game/Interface/AddOns/Foo/bar.lua");
+  second.send();
+  await sleep(60);
+  assert.equal(second.status, 404, "a torn-down bridge must not serve stale cached data");
+  assert.equal(clones, 1, "teardown must not clone");
+
+  const replacement = makePayloadWithFiles({ "bar.lua": "rebuilt" });
+  replacement.revision = "c".repeat(64);
+  revision = replacement.revision;
+  bundle = replacement;
+  const third = new context.XMLHttpRequest();
+  third.open("GET", "https://lasthavens.com/game/Interface/AddOns/Foo/bar.lua");
+  third.send();
+  await sleep(25);
+  assert.equal(third.status, 200);
+  assert.equal(third.responseText, "rebuilt");
+  assert.equal(clones, 2, "post-teardown delivery must force a fresh clone");
+});
+
 test("overlay asset stays within the deterministic packaging bounds", () => {
   assert.ok(overlayBytes.length <= 64 * 1024, "overlay must stay under 64 KiB");
   assert.equal(overlaySource.startsWith('"use strict";'), true);
+});
+
+test("large-bundle regression: repeated big-file requests decode and clone once", async () => {
+  const big = Buffer.alloc(8 * 1024 * 1024, 7).toString("base64");
+  const payload = makePayload([
+    makeAddon("Huge", Object.assign(Object.create(null), { "Huge.toc": "", "big.bin": big })),
+  ]);
+  let decodeCalls = 0;
+  const { bridge, counts } = makeCountingBridge(payload);
+  const { context } = loadWrapper({
+    atobImpl: (value) => {
+      decodeCalls += 1;
+      return atob(value);
+    },
+  });
+  context.__LASTHAVEN_ADDON_BRIDGE__ = bridge;
+  vm.runInContext(
+    "this.__LASTHAVEN_ADDON_BRIDGE__ = __LASTHAVEN_ADDON_BRIDGE__",
+    context,
+  );
+  for (let index = 0; index < 3; index += 1) {
+    const xhr = new context.XMLHttpRequest();
+    xhr.open("GET", "https://lasthavens.com/game/Interface/AddOns/Huge/big.bin");
+    xhr.send();
+    await sleep(80);
+    assert.equal(xhr.status, 200);
+    assert.equal(xhr.responseText.length, 8 * 1024 * 1024);
+  }
+  assert.equal(counts.getBundle, 1, "one clone for the whole revision");
+  assert.equal(decodeCalls, 1, "one base64 decode for the repeated large file");
 });
