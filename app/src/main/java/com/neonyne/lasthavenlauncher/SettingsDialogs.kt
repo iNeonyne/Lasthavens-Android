@@ -73,11 +73,13 @@ fun SettingsScreen(
   val networkTimeLocale = LocalConfiguration.current.locales[0]
   var selectedDestination by remember { mutableStateOf(SettingsDestination.GAME) }
   var networkSnapshot by remember { mutableStateOf<NetworkUsageSnapshot?>(null) }
+  var gameDataSizeBytes by remember { mutableStateOf<Long?>(null) }
   var lastNetworkUpdate by remember { mutableStateOf<Long?>(null) }
   var refreshingNetwork by remember { mutableStateOf(false) }
 
   LaunchedEffect(selectedDestination, usageMeter, activityStarted) {
     if (selectedDestination == SettingsDestination.NETWORK_STORAGE && activityStarted) {
+      gameDataSizeBytes = withContext(Dispatchers.IO) { usageMeter.gameDataSizeBytes() }
       while (true) {
         refreshingNetwork = true
         val nextSnapshot =
@@ -130,7 +132,8 @@ fun SettingsScreen(
         PageSection(title = stringResource(R.string.settings_storage_section)) {
           InfoLine(
             stringResource(R.string.settings_game_data_size),
-            stringResource(R.string.settings_value_not_available),
+            gameDataSizeBytes?.let(::formatBytes)
+              ?: stringResource(R.string.settings_value_not_available),
           )
         }
         PageSection(title = stringResource(R.string.settings_network_this_session)) {
