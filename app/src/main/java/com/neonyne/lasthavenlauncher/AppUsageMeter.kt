@@ -47,8 +47,8 @@ class AppUsageMeter(context: Context) {
   fun networkSnapshot(): NetworkUsageSnapshot = readNetworkSnapshot()
 
   /**
-   * Measures GeckoView's local profile (site storage and cache plus engine metadata).
-   * This is the locally stored game-data footprint, not the installed APK size.
+   * Measures GeckoView's local profile (site storage and cache plus engine metadata). This is the
+   * locally stored game-data footprint, not the installed APK size.
    */
   fun gameDataSizeBytes(): Long? {
     val profileDirectory = File(appContext.filesDir, "mozilla")
