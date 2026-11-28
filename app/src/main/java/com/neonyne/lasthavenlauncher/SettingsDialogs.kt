@@ -293,8 +293,16 @@ internal fun UpdateScreen(
               color = DesignTokens.textSecondary,
             )
           }
-          if (update.releaseNotes.isNotBlank()) {
-            Text(update.releaseNotes, color = DesignTokens.textSecondary)
+          val releaseNotes = update.releaseNotes
+          val notesPreview = remember(releaseNotes) { releaseNotesPreview(releaseNotes) }
+          if (notesPreview.isNotBlank()) {
+            Text(notesPreview, color = DesignTokens.textSecondary)
+          }
+          if (notesPreview.length < releaseNotes.length) {
+            Text(
+              stringResource(R.string.updates_release_notes_truncated),
+              color = DesignTokens.textSecondary,
+            )
           }
           if (isDownloading) {
             val downloadLabel =

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="updates_release_notes_truncated">Показано лише початок приміток до випуску.</string>
     <string name="addon_manager_title">МЕНЕДЖЕР ДОДАТКІВ</string>
     <string name="addon_manager_local_addons">Локальні додатки</string>
     <string name="addon_manager_back">Назад</string>
