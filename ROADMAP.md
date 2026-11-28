@@ -49,7 +49,7 @@ Update this file when strategic priorities, sequence or release direction change
 <!-- ROADMAP-LIVE-START -->
 ## Live issue and PR inventory
 
-Generated: 2026-11-28T15:02:41+00:00
+Generated: 2026-11-28T15:05:07+00:00
 Source of truth: live GitHub Issues, pull requests and labels. This section is generated automatically; do not edit it manually.
 
 Every open issue is listed below, grouped by its current priority. Opening a newer issue or PR does not supersede an older one. Duplicates and supersession must be explicitly reviewed and linked in GitHub.
@@ -106,6 +106,7 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 
 - [#238 — release: promote latest beta to main](https://github.com/iNeonyne/LastHavenPlus/pull/238) (main <- beta)
 - [#250 — ui: start landscape launcher redesign and POCO smoke coverage (#248)](https://github.com/iNeonyne/LastHavenPlus/pull/250) (beta <- chaty/native-landscape-ui-248)
+- [#254 — fix(session): ignore GeckoView callbacks from replaced sessions (#218)](https://github.com/iNeonyne/LastHavenPlus/pull/254) (beta <- vibe/session-callback-guard-218)
 
 ### Recently completed (last 30 days)
 
