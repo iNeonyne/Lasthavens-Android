@@ -255,8 +255,7 @@ private fun AddonCard(
   val missing = dependencyReport.missingByFolder[addon.folder].orEmpty()
   val isBlocked = missing.isNotEmpty() || addon.folder in dependencyReport.cyclicFolders
   val warningCount =
-    addon.warnings.size +
-      if (addon.sizeBytes > AddonLimits.MAX_RUNTIME_BUNDLE_BYTES) 1 else 0
+    addon.warnings.size + if (addon.sizeBytes > AddonLimits.MAX_RUNTIME_BUNDLE_BYTES) 1 else 0
   val hasWarnings = warningCount > 0
   val status =
     when {

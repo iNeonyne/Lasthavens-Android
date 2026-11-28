@@ -138,5 +138,4 @@ class AddonManagerUiSmokeTest {
     composeRule.onNodeWithText("Blocked").assertIsDisplayed()
     composeRule.onNode(isToggleable()).assertIsNotEnabled()
   }
-
 }
