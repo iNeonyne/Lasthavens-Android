@@ -30,21 +30,9 @@ class AddonManagerIntegrationTest {
     assertTrue(main.contains("addonReloadRequired = true"))
     val reload =
       main.substringAfter("val reloadGame: () -> Unit =").substringBefore("val loadGameUrl:")
-    assertTrue(
-      reload.contains(
-        "if (refreshed && requestedAddonRevision == addonRevision) addonReloadRequired = false",
-      ),
-    )
-    val controller = source("GameSessionController.kt")
-    val pageStop =
-      controller.substringAfter("override fun onPageStop").substringBefore("override fun onCrash")
-    assertTrue(pageStop.contains("attempt.onPageStop(callbackGeneration, success) ?: return"))
-    assertTrue(
-      pageStop
-        .substringAfter("if (reloadSucceeded)")
-        .substringBefore("else")
-        .contains("completed?.invoke()"),
-    )
+    assertTrue(reload.contains("if (refreshed)"))
+    assertTrue(reload.contains("gameSessionController.reloadGame(context, gameUrl)"))
+    assertTrue(reload.contains("addonReloadRequired = false"))
   }
 
   @Test

@@ -4,23 +4,10 @@ set -euo pipefail
 # The full signed APK is the required release payload. Differential
 # generation is an optimization and must never block that payload.
 mkdir -p release-assets
-APK_NAME="LastHavenPlus-${RELEASE_VERSION}-stable-arm64-v8a.apk"
-COMPAT_APK_NAME="lasthavenplus-arm64.apk"
-cp app/build/outputs/apk/release/app-release.apk "release-assets/$APK_NAME"
-TARGET_APK="release-assets/$APK_NAME"
-cp "$TARGET_APK" "release-assets/$COMPAT_APK_NAME"
+cp app/build/outputs/apk/release/app-release.apk release-assets/lasthavenplus-arm64.apk
+TARGET_APK="release-assets/lasthavenplus-arm64.apk"
 TARGET_SHA="$(sha256sum "$TARGET_APK" | awk '{print $1}')"
-COMPAT_SHA="$(sha256sum "release-assets/$COMPAT_APK_NAME" | awk '{print $1}')"
-if [[ "$COMPAT_SHA" != "$TARGET_SHA" ]]; then
-  echo "::error::Legacy updater compatibility APK does not match the versioned APK."
-  exit 1
-fi
 TARGET_SIZE="$(stat -c '%s' "$TARGET_APK")"
-COMPAT_SIZE="$(stat -c '%s' "release-assets/$COMPAT_APK_NAME")"
-if [[ "$COMPAT_SIZE" != "$TARGET_SIZE" ]]; then
-  echo "::error::Legacy updater compatibility APK size does not match the versioned APK."
-  exit 1
-fi
 PATCH_JSON="null"
 RELEASES_JSON="$RUNNER_TEMP/releases.json"
 PATCH_TOOLS_READY=false
@@ -43,11 +30,7 @@ fi
 
 if [[ -n "$PREVIOUS_RELEASE" ]]; then
   PREVIOUS_TAG="$(jq -r '.tag_name // empty' <<< "$PREVIOUS_RELEASE" 2>/dev/null || true)"
-  PREVIOUS_APK_ASSET_NAME="$(jq -r --arg version "${PREVIOUS_TAG#v}" '.assets[]? | select(.name == ("LastHavenPlus-" + $version + "-stable-arm64-v8a.apk")) | .name' <<< "$PREVIOUS_RELEASE" 2>/dev/null | head -n 1 || true)"
-  if [[ -z "$PREVIOUS_APK_ASSET_NAME" ]]; then
-    PREVIOUS_APK_ASSET_NAME="lasthavenplus-arm64.apk"
-  fi
-  PREVIOUS_APK_URL="$(jq -r --arg name "$PREVIOUS_APK_ASSET_NAME" '.assets[]? | select(.name == $name) | .browser_download_url' <<< "$PREVIOUS_RELEASE" 2>/dev/null | head -n 1 || true)"
+  PREVIOUS_APK_URL="$(jq -r '.assets[]? | select(.name == "lasthavenplus-arm64.apk") | .browser_download_url' <<< "$PREVIOUS_RELEASE" 2>/dev/null | head -n 1 || true)"
   PREVIOUS_MANIFEST_URL="$(jq -r '.assets[]? | select(.name == "lasthavenplus-update.json") | .browser_download_url' <<< "$PREVIOUS_RELEASE" 2>/dev/null | head -n 1 || true)"
 
   if [[ "$PREVIOUS_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ &&
@@ -59,13 +42,11 @@ if [[ -n "$PREVIOUS_RELEASE" ]]; then
 
       BASE_VERSION="$(jq -r '.version // empty' "$RUNNER_TEMP/previous-manifest.json" 2>/dev/null || true)"
       BASE_VERSION_CODE="$(jq -r '.versionCode // empty' "$RUNNER_TEMP/previous-manifest.json" 2>/dev/null || true)"
-      BASE_APK_NAME="$(jq -r '.apk.name // empty' "$RUNNER_TEMP/previous-manifest.json" 2>/dev/null || true)"
       BASE_EXPECTED_SHA="$(jq -r '.apk.sha256 // empty' "$RUNNER_TEMP/previous-manifest.json" 2>/dev/null || true)"
       BASE_SHA="$(sha256sum "$RUNNER_TEMP/previous.apk" 2>/dev/null | awk '{print $1}' || true)"
 
       if [[ "$BASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ &&
         "$PREVIOUS_TAG" == "v$BASE_VERSION" &&
-        "$BASE_APK_NAME" == "$PREVIOUS_APK_ASSET_NAME" &&
         "$BASE_VERSION_CODE" =~ ^[0-9]+$ &&
         "$BASE_EXPECTED_SHA" =~ ^[0-9a-fA-F]{64}$ &&
         "$BASE_SHA" =~ ^[0-9a-fA-F]{64}$ &&
@@ -138,14 +119,12 @@ fi
 jq -n \
   --arg version "$RELEASE_VERSION" \
   --argjson versionCode "$RELEASE_VERSION_CODE" \
-  --arg apkName "$APK_NAME" \
   --arg apkSha "$TARGET_SHA" \
   --argjson apkSize "$TARGET_SIZE" \
   --argjson patch "$PATCH_JSON" \
-  '{schemaVersion:1, version:$version, versionCode:$versionCode, apk:{name:$apkName, sha256:$apkSha, size:$apkSize}, patch:$patch}' \
+  '{schemaVersion:1, version:$version, versionCode:$versionCode, apk:{name:"lasthavenplus-arm64.apk", sha256:$apkSha, size:$apkSize}, patch:$patch}' \
   > release-assets/lasthavenplus-update.json
 
-test -s "release-assets/$APK_NAME"
-test -s "release-assets/$COMPAT_APK_NAME"
+test -s release-assets/lasthavenplus-arm64.apk
 test -s release-assets/lasthavenplus-update.json
 echo "Release payload ready: full APK and update manifest."

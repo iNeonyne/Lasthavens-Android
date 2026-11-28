@@ -1,24 +1,6 @@
 package com.neonyne.lasthavenlauncher
 
 /**
- * Rejects stale GeckoView callbacks from a replaced game session (issue #218). The controller
- * advances the generation every time a new session is created; delegates capture the generation
- * active at attach time and each callback is accepted only while that generation is still current.
- */
-class GameSessionCallbackGate(initialGeneration: Int = 0) {
-  private var currentGeneration: Int = initialGeneration
-
-  val generation: Int
-    get() = currentGeneration
-
-  /** Registers a replacement session and returns its callback generation. */
-  fun advance(): Int = ++currentGeneration
-
-  /** True only for callbacks that belong to the current session generation. */
-  fun accepts(callbackGeneration: Int): Boolean = callbackGeneration == currentGeneration
-}
-
-/**
  * Immutable snapshot of the game-session state rendered by the composition root.
  * [hasSession]/[sessionOpen] mirror the live GeckoSession; the remaining fields mirror the
  * GeckoView load/process signals observed so far.
@@ -31,19 +13,16 @@ data class GameSessionUiState(
   val sessionCrashed: Boolean,
   val hasLoadedGame: Boolean,
   val hasCompletedLoad: Boolean,
-  val reloadInProgress: Boolean = false,
 ) {
   /** The single launcher-owned presentation shown on the game screen. */
   val presentation: GameLoadPresentation
     get() =
-      if (reloadInProgress) GameLoadPresentation.LoadingGame
-      else
-        GameLoadPolicy.resolve(
-          hasSession = hasSession,
-          isLoading = isLoading,
-          hasCompletedLoad = hasCompletedLoad,
-          failure = GameLoadPolicy.failure(sessionCrashed, pageLoadFailed),
-        )
+      GameLoadPolicy.resolve(
+        hasSession = hasSession,
+        isLoading = isLoading,
+        hasCompletedLoad = hasCompletedLoad,
+        failure = GameLoadPolicy.failure(sessionCrashed, pageLoadFailed),
+      )
 }
 
 /** What startGame must do with the current session. */
@@ -60,14 +39,14 @@ sealed interface GameSessionStartDecision {
 
 /** What reload must do with the current session. */
 sealed interface GameSessionReloadDecision {
-  /** Navigate the existing open session to the selected URL. */
+  /** The session is open; reload it in place. */
   data object ReloadInPlace : GameSessionReloadDecision
 
   /** The session exists but is closed; re-open it and load the game URL again. */
   data object ReopenAndLoad : GameSessionReloadDecision
 
-  /** Create a session when absent or after a content-process failure. */
-  data object CreateNewSession : GameSessionReloadDecision
+  /** No session exists; reload must do nothing. */
+  data object Noop : GameSessionReloadDecision
 }
 
 /** What changing the configured game URL must do with the current session. */
@@ -96,7 +75,7 @@ object GameSessionActions {
 
   fun decideReload(state: GameSessionUiState): GameSessionReloadDecision =
     when {
-      !state.hasSession || state.sessionCrashed -> GameSessionReloadDecision.CreateNewSession
+      !state.hasSession -> GameSessionReloadDecision.Noop
       state.sessionOpen -> GameSessionReloadDecision.ReloadInPlace
       else -> GameSessionReloadDecision.ReopenAndLoad
     }
@@ -107,6 +86,9 @@ object GameSessionActions {
       state.sessionOpen -> GameSessionUrlChangeDecision.LoadInPlace
       else -> GameSessionUrlChangeDecision.ReopenAndLoad
     }
+
+  /** Only an existing (possibly crashed) session is restored by recreating it. */
+  fun shouldRestore(state: GameSessionUiState): Boolean = state.hasSession
 
   /** A page load started; any prior failure signal is superseded. */
   fun onPageStart(state: GameSessionUiState): GameSessionUiState =
@@ -131,6 +113,9 @@ object GameSessionActions {
   fun onProcessFailure(state: GameSessionUiState): GameSessionUiState =
     state.copy(isLoading = false, pageLoadFailed = false, sessionCrashed = true)
 
+  fun onSessionCreated(state: GameSessionUiState): GameSessionUiState =
+    state.copy(pageLoadFailed = false)
+
   fun onLoadRequested(state: GameSessionUiState): GameSessionUiState =
     state.copy(hasLoadedGame = true)
 
@@ -146,29 +131,4 @@ object GameSessionActions {
       hasLoadedGame = false,
       hasCompletedLoad = false,
     )
-}
-
-/** Tracks one explicit reload across bridge preparation and Gecko top-level progress callbacks. */
-internal class GameReloadAttempt(val url: String) {
-  private var sessionGeneration: Int? = null
-  private var started = false
-
-  val navigationRequested: Boolean
-    get() = sessionGeneration != null
-
-  fun requestNavigation(generation: Int): Boolean {
-    if (navigationRequested) return false
-    sessionGeneration = generation
-    return true
-  }
-
-  fun onPageStart(generation: Int, url: String) {
-    if (sessionGeneration == generation && this.url == url) started = true
-  }
-
-  fun onPageStop(generation: Int, success: Boolean): Boolean? {
-    if (!started || sessionGeneration != generation) return null
-    started = false
-    return success
-  }
 }

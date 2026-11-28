@@ -2,13 +2,10 @@ package com.neonyne.lasthavenlauncher
 
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FilterInputStream
-import java.io.IOException
 import java.nio.file.Files
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class BsdiffPatchTest {
@@ -203,69 +200,6 @@ class BsdiffPatchTest {
       } catch (expected: IllegalArgumentException) {
         assertEquals(false, outputFile.exists())
       }
-    } finally {
-      directory.deleteRecursively()
-    }
-  }
-
-  @Test
-  fun closesControlWhenDiffInitializationFails() {
-    assertSectionStreamsClosed(failingSection = 1)
-  }
-
-  @Test
-  fun closesControlAndDiffWhenExtraInitializationFails() {
-    assertSectionStreamsClosed(failingSection = 2)
-  }
-
-  private fun assertSectionStreamsClosed(failingSection: Int) {
-    val directory = Files.createTempDirectory("bsdiff-section-init").toFile()
-    try {
-      val oldFile = File(directory, "old.apk").apply { writeText("A") }
-      val outputFile = File(directory, "new.apk").apply { writeText("stale output") }
-      val control = compressed {
-        writeOffset(1)
-        writeOffset(0)
-        writeOffset(0)
-      }
-      val diff = compressed { write(0) }
-      val extra = compressed {}
-      val sections =
-        listOf(control, diff, extra).mapIndexed { index, section ->
-          if (index == failingSection) section.copyOf(2) else section
-        }
-      val patchFile =
-        File(directory, "truncated-section.bsdiff").apply {
-          outputStream().use { output ->
-            val header =
-              ByteArrayOutputStream().apply {
-                write("BSDIFF40".toByteArray(Charsets.US_ASCII))
-                writeOffset(sections[0].size.toLong())
-                writeOffset(sections[1].size.toLong())
-                writeOffset(1)
-              }
-            header.writeTo(output)
-            sections.forEach { output.write(it) }
-          }
-        }
-
-      var sectionsOpened = 0
-      val closedSections = mutableListOf<Int>()
-      assertThrows(IOException::class.java) {
-        BsdiffPatch.apply(oldFile, patchFile, outputFile, 1024) { file ->
-          val index = sectionsOpened++
-          object : FilterInputStream(file.inputStream()) {
-            override fun close() {
-              closedSections.add(index)
-              super.close()
-            }
-          }
-        }
-      }
-
-      assertEquals(failingSection + 1, sectionsOpened)
-      assertEquals((failingSection downTo 0).toList(), closedSections)
-      assertEquals(false, outputFile.exists())
     } finally {
       directory.deleteRecursively()
     }

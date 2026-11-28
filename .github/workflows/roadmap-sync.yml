@@ -2,43 +2,26 @@ name: Keep roadmap synchronized
 
 on:
   push:
-    branches: [main]
+    branches: [beta]
+    paths: [.github/workflows/roadmap-sync.yml]
   issues:
     types: [opened, edited, labeled, unlabeled, closed, reopened]
   pull_request:
-    types: [opened, reopened, synchronize]
-    paths:
-      - "ROADMAP.md"
-      - ".github/scripts/generate_roadmap.py"
-      - ".github/scripts/test_generate_roadmap.py"
-      - ".github/workflows/roadmap-sync.yml"
+    types: [opened, edited, closed, reopened]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+  issues: read
+  pull-requests: read
 
 concurrency:
   group: roadmap-sync
   cancel-in-progress: false
 
 jobs:
-  test:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    steps:
-      - name: Check out source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Test roadmap generator
-        run: python3 .github/scripts/test_generate_roadmap.py
-
   sync:
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: read
-      pull-requests: read
     timeout-minutes: 5
     steps:
       - name: Check out main
@@ -46,9 +29,6 @@ jobs:
         with:
           ref: main
           fetch-depth: 1
-
-      - name: Test roadmap generator
-        run: python3 .github/scripts/test_generate_roadmap.py
 
       - name: Generate roadmap from live GitHub state
         env:

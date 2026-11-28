@@ -16,7 +16,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -37,14 +36,12 @@ fun GameScreen(
 ) {
   Box(modifier = Modifier.fillMaxSize()) {
     if (session != null) {
-      key(session) {
-        AndroidView(
-          factory = { viewContext -> GeckoView(viewContext).apply { setSession(session) } },
-          modifier = Modifier.fillMaxSize(),
-          // Detach the view but keep the GeckoSession open when navigating to another screen.
-          onRelease = { view -> view.releaseSession() },
-        )
-      }
+      AndroidView(
+        factory = { viewContext -> GeckoView(viewContext).apply { setSession(session) } },
+        modifier = Modifier.fillMaxSize(),
+        // Detach the view but keep the GeckoSession open when navigating to another screen.
+        onRelease = { view -> view.releaseSession() },
+      )
     }
 
     when (presentation) {
@@ -52,7 +49,7 @@ fun GameScreen(
 
       GameLoadPresentation.Preparing ->
         GameStatusSurface(
-          contentDescription = stringResource(R.string.game_preparing_content_description),
+          contentDescription = stringResource(R.string.game_preparing_content_description)
         ) {
           LinearProgressIndicator()
           Spacer(modifier = Modifier.height(16.dp))
@@ -60,8 +57,9 @@ fun GameScreen(
         }
 
       GameLoadPresentation.LoadingGame ->
+        // Restrained branded state for the initial page load only; no fabricated progress.
         GameStatusSurface(
-          contentDescription = stringResource(R.string.game_loading_content_description),
+          contentDescription = stringResource(R.string.game_loading_content_description)
         ) {
           LinearProgressIndicator(color = DesignTokens.frost)
           Spacer(modifier = Modifier.height(16.dp))
@@ -70,7 +68,7 @@ fun GameScreen(
 
       GameLoadPresentation.RecoverableFailure ->
         GameStatusSurface(
-          contentDescription = stringResource(R.string.game_load_failed_content_description),
+          contentDescription = stringResource(R.string.game_load_failed_content_description)
         ) {
           Text(
             stringResource(R.string.game_load_failed_title),
@@ -96,7 +94,7 @@ fun GameScreen(
 
       GameLoadPresentation.RendererFailure ->
         GameStatusSurface(
-          contentDescription = stringResource(R.string.game_crashed_content_description),
+          contentDescription = stringResource(R.string.game_crashed_content_description)
         ) {
           Text(
             stringResource(R.string.game_crashed_title),

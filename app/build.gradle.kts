@@ -14,6 +14,11 @@ val releaseSigningConfigured =
     !releaseKeyPassword.isNullOrBlank() &&
     file(releaseStoreFile).isFile
 
+// Compose instrumentation does not initialise GeckoView. On CI, omit Gecko's ARM64 native
+// libraries from the smoke-only APK so the same UI tests can run on a bootable x86_64 emulator.
+// Release/debug artifacts remain ARM64-only and keep all GeckoView binaries.
+val uiSmokeNoNativeLibs = providers.gradleProperty("uiSmokeNoNativeLibs").orNull == "true"
+
 android {
   namespace = "com.neonyne.lasthavenlauncher"
   compileSdk = 37
@@ -25,6 +30,7 @@ android {
     targetSdk = 36
     versionCode = providers.gradleProperty("appVersionCode").orElse("1").get().toInt()
     versionName = providers.gradleProperty("appVersionName").orElse("0.1.0").get()
+    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
     ndk {
       abiFilters += "arm64-v8a"
@@ -60,6 +66,9 @@ android {
   packaging {
     jniLibs {
       useLegacyPackaging = true
+      if (uiSmokeNoNativeLibs) {
+        excludes += "**/*.so"
+      }
     }
   }
 }
@@ -80,6 +89,12 @@ dependencies {
   implementation(libs.commons.compress)
 
   testImplementation(libs.junit)
+
+  androidTestImplementation(libs.androidx.test.runner)
+  androidTestImplementation(libs.androidx.test.ext.junit)
+  androidTestImplementation(platform(libs.androidx.compose.bom))
+  androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+  debugImplementation(libs.androidx.compose.ui.test.manifest)
 
   val composeBom = platform(libs.androidx.compose.bom)
   implementation(composeBom)

@@ -18,16 +18,14 @@ class AddonBridgeWiringTest {
       File(sourceRoot, "com/neonyne/lasthavenlauncher/GameSessionController.kt").readText()
 
     val startBlock =
-      mainSource
-        .substringAfter("val startGame: () -> Unit = {")
-        .substringBefore("val checkForUpdates")
+      mainSource.substringAfter("val startGame: () -> Unit = {").substringBefore("val restoreGame")
 
     assertTrue(startBlock.contains("addonBridgeController.ensureInstalled(context) {"))
     assertTrue(
-      startBlock.contains("gameSessionController.startGame(context, gameUrl) { session ->"),
+      startBlock.contains("gameSessionController.startGame(context, gameUrl) { session ->")
     )
     assertTrue(
-      startBlock.indexOf("ensureInstalled") < startBlock.indexOf("gameSessionController.startGame"),
+      startBlock.indexOf("ensureInstalled") < startBlock.indexOf("gameSessionController.startGame")
     )
     assertTrue(mainSource.contains("addonBridgeController.setGameSession(session)"))
 
@@ -57,20 +55,11 @@ class AddonBridgeWiringTest {
   fun `bridge refreshes payload before explicit reload and tears down with composition`() {
     val source = File(sourceRoot, "com/neonyne/lasthavenlauncher/MainActivity.kt").readText()
     val reloadBlock =
-      source.substringAfter("val reloadGame: () -> Unit = {").substringBefore("val loadGameUrl")
+      source.substringAfter("val reloadGame: () -> Unit = {").substringBefore("val startGame")
 
     assertTrue(reloadBlock.contains("addonBridgeController.ensureInstalled(context)"))
-    assertTrue(reloadBlock.contains("addonBridgeController.refreshSnapshot(requireFresh = true) {"))
-    val controller =
-      File(sourceRoot, "com/neonyne/lasthavenlauncher/GameSessionController.kt").readText()
-    assertTrue(controller.contains("if (reloadAttempt != null) return"))
-    assertTrue(
-      controller.contains("if (reloadAttempt !== attempt || attempt.navigationRequested) return"),
-    )
-    val bridgeCompletion = controller.substringAfter("prepareBridge { refreshed ->")
-    assertTrue(
-      bridgeCompletion.trimStart().startsWith("navigateReload(context, attempt, onSessionReady)"),
-    )
+    assertTrue(reloadBlock.contains("addonBridgeController.refreshSnapshot {"))
+    assertTrue(reloadBlock.indexOf("refreshSnapshot") < reloadBlock.indexOf("reloadGame"))
     assertTrue(source.contains("addonBridgeController.teardown()"))
     assertTrue(source.contains("addonBridgeExecutor.shutdown()"))
   }
@@ -81,10 +70,10 @@ class AddonBridgeWiringTest {
 
     assertTrue(source.contains("File(context.filesDir, \"addons\")"))
     assertTrue(source.contains("snapshotProvider = { addonLibraryRepository.readLibrary() }"))
-    assertTrue(source.contains("onRestore = reloadGame"))
+    assertTrue(source.contains("gameSessionController.restoreGame(context, gameUrl) { session ->"))
     assertTrue(source.contains("addonBridgeController.refreshSnapshot {"))
     assertTrue(source.contains("gameSessionController.startGame(context, gameUrl) { session ->"))
     assertTrue(source.contains("addonBridgeController.setGameSession(session)"))
-    assertTrue(source.contains("onSessionReady = addonBridgeController::setGameSession"))
+    assertTrue(source.contains("gameSessionController.reloadGame(context, gameUrl)"))
   }
 }

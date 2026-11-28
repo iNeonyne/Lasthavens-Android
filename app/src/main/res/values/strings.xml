@@ -148,4 +148,22 @@
     <string tools:ignore="MissingTranslation" name="diagnostics_share">Share logs</string>
     <string name="diagnostics_share_subject" translatable="false">LastHavenPlus diagnostics</string>
     <string tools:ignore="MissingTranslation" name="diagnostics_share_chooser">Share diagnostic logs</string>
+    <string tools:ignore="MissingTranslation" name="settings_nav_game">Game</string>
+    <string tools:ignore="MissingTranslation" name="settings_nav_network_storage">Network &amp; storage</string>
+    <string tools:ignore="MissingTranslation" name="settings_nav_application">Application</string>
+    <string tools:ignore="MissingTranslation" name="settings_network_tracked_received">Tracked download total</string>
+    <string tools:ignore="MissingTranslation" name="settings_network_tracked_sent">Tracked upload total</string>
+    <string tools:ignore="MissingTranslation" name="settings_network_this_session">This app session</string>
+    <string tools:ignore="MissingTranslation" name="settings_network_tracked_period">Lifetime total (tracked)</string>
+    <string tools:ignore="MissingTranslation" name="settings_network_auto_refresh">Usage updates automatically while this page is open.</string>
+    <string tools:ignore="MissingTranslation" name="settings_network_tracked_hint">Local app-wide totals include game and updater traffic. Tracking starts with the first available counter sample and cannot recover unobserved traffic.</string>
+    <string tools:ignore="MissingTranslation" name="settings_network_last_updated">Last updated %1$s</string>
+    <string name="addon_manager_status_blocked">Blocked</string>
+    <string name="addon_manager_status_enabled">Enabled</string>
+    <string name="addon_manager_status_disabled">Disabled</string>
+    <string name="addon_manager_warnings_count">%1$d warnings</string>
+    <string name="addon_manager_toggle">Toggle %1$s</string>
+    <string name="addon_manager_more_actions">More actions for %1$s</string>
+    <string name="addon_manager_details">Details</string>
+    <string name="addon_manager_details_close">Close</string>
 </resources>
