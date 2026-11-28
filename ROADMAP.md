@@ -49,7 +49,7 @@ Update this file when strategic priorities, sequence or release direction change
 <!-- ROADMAP-LIVE-START -->
 ## Live issue and PR inventory
 
-Generated: 2026-11-28T19:41:25+00:00
+Generated: 2026-11-28T19:41:48+00:00
 Source of truth: live GitHub Issues, pull requests and labels. This section is generated automatically; do not edit it manually.
 
 Every open issue is listed below, grouped by its current priority. Opening a newer issue or PR does not supersede an older one. Duplicates and supersession must be explicitly reviewed and linked in GitHub.
@@ -58,7 +58,7 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 
 #### P0
 
-- [#4 — P0.1 — Improve build reproducibility and updater test coverage](https://github.com/iNeonyne/LastHavenPlus/issues/4) — bug, P0.1, P0
+- [#4 — P0.1 — Improve build reproducibility and updater test coverage](https://github.com/iNeonyne/LastHavenPlus/issues/4) — bug, P0.1, P0, coderabbit-fix
 - [#23 — P0 — Complete Addon Manager ZIP 0.5.1 Phase B for GeckoView](https://github.com/iNeonyne/LastHavenPlus/issues/23) — enhancement, P0
 - [#31 — P0 — Fix draft release asset verification and verify differential fallback](https://github.com/iNeonyne/LastHavenPlus/issues/31) — bug, P0
 
