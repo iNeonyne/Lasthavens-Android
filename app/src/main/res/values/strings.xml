@@ -154,7 +154,7 @@
 <string tools:ignore="MissingTranslation" name="settings_network_tracked_received">Tracked download total</string>
 <string tools:ignore="MissingTranslation" name="settings_network_tracked_sent">Tracked upload total</string>
 <string tools:ignore="MissingTranslation" name="settings_network_this_session">This app session</string>
-<string tools:ignore="MissingTranslation" name="settings_network_tracked_period">Tracked total</string>
+<string tools:ignore="MissingTranslation" name="settings_network_tracked_period">Lifetime total (tracked)</string>
 <string tools:ignore="MissingTranslation" name="settings_network_auto_refresh">Usage updates automatically while this page is open.</string>
 <string tools:ignore="MissingTranslation" name="settings_network_tracked_hint">Local app-wide totals include game and updater traffic. Tracking starts with the first available counter sample and cannot recover unobserved traffic.</string>
 <string tools:ignore="MissingTranslation" name="settings_network_last_updated">Last updated %1$s</string>
