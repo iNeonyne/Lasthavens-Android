@@ -20,7 +20,7 @@ internal object UpdateFileCleanup {
   private const val MAX_ENTRIES_PER_CLEANUP = 256
   private val managedApkName =
     Regex(
-      """^LastHavenPlus-update-\d+-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\.apk$"""
+      """^LastHavenPlus-update-\d+-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\.apk$""",
     )
 
   /** Returns only a validated APK filename from this app's expected FileProvider URI. */
@@ -69,7 +69,11 @@ internal object UpdateFileCleanup {
    * Only direct regular files with updater-owned names are eligible; symlinks and subdirectories
    * are never followed or traversed.
    */
-  fun removeObsoleteFiles(directory: File, protectedApkNames: Set<String> = emptySet()) {
+  fun removeObsoleteFiles(
+    directory: File,
+    protectedApkNames: Set<String> = emptySet(),
+    keepFinalizedApks: Boolean = false,
+  ) {
     if (Files.isSymbolicLink(directory.toPath()) || !directory.isDirectory) return
     val canonicalDirectory = runCatching { directory.canonicalFile }.getOrNull() ?: return
     runCatching {
@@ -86,7 +90,8 @@ internal object UpdateFileCleanup {
 
           when {
             file.name.endsWith(".part") -> file.delete()
-            isManagedApkName(file.name) && file.name !in protectedApkNames -> file.delete()
+            !keepFinalizedApks && isManagedApkName(file.name) && file.name !in protectedApkNames ->
+              file.delete()
           }
         }
       }

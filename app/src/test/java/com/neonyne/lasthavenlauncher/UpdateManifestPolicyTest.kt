@@ -66,6 +66,22 @@ class UpdateManifestPolicyTest {
     assertFalse(UpdateManifestPolicy.isPatchCompatible("1.0.0", 1_000_000, "1.0.0", 999_999))
   }
 
+  @Test
+  fun selectsFullApkWhenPatchIsAtLeastAsLarge() {
+    fun selectedDownload(patchSize: Long) =
+      UpdateFallback.withFullFallback(
+        preferDelta = UpdateManifestPolicy.isPatchSizeEligible(patchSize, 100, 500),
+        deltaAttempt = { "patch" },
+        fullAttempt = { "full" },
+      )
+
+    assertEquals("patch", selectedDownload(99))
+    assertEquals("full", selectedDownload(100))
+    assertEquals("full", selectedDownload(101))
+    assertFalse(UpdateManifestPolicy.isPatchSizeEligible(501, 600, 500))
+    assertFalse(UpdateManifestPolicy.isPatchSizeEligible(0, 100, 500))
+  }
+
   private fun validate(
     schemaVersion: Int = 1,
     manifestVersion: String = "1.1.0",

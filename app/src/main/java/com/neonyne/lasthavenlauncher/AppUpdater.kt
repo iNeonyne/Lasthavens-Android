@@ -6,8 +6,12 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.os.StatFs
+import android.system.ErrnoException
+import android.system.OsConstants
 import androidx.core.content.FileProvider
 import java.io.File
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
@@ -212,8 +216,14 @@ object AppUpdater {
                     }
                   }
                   val patchSize = patchJson.getLong("size")
-                  check(patchSize in 1..MAX_PATCH_BYTES) {
-                    "Differential patch size is invalid"
+                  if (
+                    !UpdateManifestPolicy.isPatchSizeEligible(
+                      patchSize,
+                      targetSize,
+                      MAX_PATCH_BYTES,
+                    )
+                  ) {
+                    return@let null
                   }
                   check(patchAsset.getLong("size") == patchSize) {
                     "GitHub patch asset size does not match the update manifest"
@@ -308,10 +318,8 @@ object AppUpdater {
           File(appContext.filesDir, "updates").apply {
             check(isDirectory || mkdirs()) { "Could not create the update download directory" }
           }
-        UpdateFileCleanup.removeObsoleteFiles(
-          updateDirectory,
-          UpdateFileCleanup.protectedApkNames(appContext),
-        )
+        // Keep the last verified APK until its replacement is verified and ready for handoff.
+        UpdateFileCleanup.removeObsoleteFiles(updateDirectory, keepFinalizedApks = true)
         val temporaryApk =
           File.createTempFile(
             "update-${update.versionCode}-",
@@ -358,6 +366,7 @@ object AppUpdater {
                 delta.baseSha256,
               )
 
+              requireStagingSpace(updateDirectory, update.size, delta.size)
               val patchFile =
                 File.createTempFile(
                   "update-${update.versionCode}-",
@@ -375,7 +384,7 @@ object AppUpdater {
                   progressTracker,
                   ::publishDownloadProgress,
                 )
-                BsdiffPatch.apply(baseApk, patchFile, temporaryApk, MAX_APK_BYTES)
+                BsdiffPatch.apply(baseApk, patchFile, temporaryApk, update.size)
                 verifyCandidate()
                 temporaryApk
               } finally {
@@ -385,6 +394,7 @@ object AppUpdater {
             fullAttempt = {
               // Never let a failed or partially reconstructed delta reach the installer.
               temporaryApk.delete()
+              requireStagingSpace(updateDirectory, update.size)
               progressTracker.onAttemptStarted(1)
               setProgressStage(UpdateStage.FULL_DOWNLOAD)
               downloadToFileWithRetry(
@@ -417,12 +427,30 @@ object AppUpdater {
               "${appContext.packageName}.updates",
               finalApk,
             )
+          UpdateFileCleanup.removeObsoleteFiles(
+            updateDirectory,
+            UpdateFileCleanup.protectedApkNames(appContext) + finalApk.name,
+          )
           setProgressStage(UpdateStage.READY)
           updateUri
         } finally {
           temporaryApk.delete()
         }
       }
+        .recoverCatching { error ->
+          if (
+            generateSequence(error) { it.cause }
+              .any {
+                it is ErrnoException && it.errno == OsConstants.ENOSPC
+              }
+          ) {
+            throw IOException(
+              "Device storage ran out during the update. Free some space and try again.",
+              error,
+            )
+          }
+          throw error
+        }
 
       result
         .onSuccess {
@@ -434,6 +462,16 @@ object AppUpdater {
         }
       mainHandler.post { callback(result) }
     }
+  }
+
+  private fun requireStagingSpace(directory: File, apkSize: Long, patchSize: Long = 0) {
+    val availableBytes =
+      try {
+        StatFs(directory.absolutePath).availableBytes
+      } catch (_: IllegalArgumentException) {
+        null
+      }
+    UpdateStoragePolicy.requireSpace(availableBytes, apkSize, patchSize)
   }
 
   private fun verifySignedUpdate(context: Context, apkFile: File, update: AppUpdateInfo) {
@@ -564,7 +602,7 @@ object AppUpdater {
         input = connection.inputStream,
         destination = destination,
         expectedSize = expectedSize,
-        maximumBytes = maximumBytes,
+        maximumBytes = minOf(maximumBytes, expectedSize),
         expectedSha256 = expectedSha256,
         onBytesCopied = { delta ->
           progressTracker.onBytesWritten(delta)
