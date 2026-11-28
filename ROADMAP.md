@@ -49,7 +49,7 @@ Update this file when strategic priorities, sequence or release direction change
 <!-- ROADMAP-LIVE-START -->
 ## Live issue and PR inventory
 
-Generated: 2026-11-28T18:16:58+00:00
+Generated: 2026-11-28T18:17:16+00:00
 Source of truth: live GitHub Issues, pull requests and labels. This section is generated automatically; do not edit it manually.
 
 Every open issue is listed below, grouped by its current priority. Opening a newer issue or PR does not supersede an older one. Duplicates and supersession must be explicitly reviewed and linked in GitHub.
@@ -62,7 +62,6 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 
 #### P1
 
-- [#28 — P1 — Measure game-origin storage accurately for Network & Storage](https://github.com/iNeonyne/LastHavenPlus/issues/28) — enhancement, P1, coderabbit-fix
 - [#248 — P1 — Native landscape UX, POCO X6 Pro layout and Android UI smoke coverage](https://github.com/iNeonyne/LastHavenPlus/issues/248) — enhancement, P1, coderabbit-fix
 
 #### P2
