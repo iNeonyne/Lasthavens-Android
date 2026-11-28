@@ -426,7 +426,6 @@ private fun LastHavenApp(
 
       Screen.Settings ->
         SettingsScreen(
-          context = context,
           usageMeter = usageMeter,
           gameUrl = gameUrl,
           onGameUrlChange = { selectedUrl ->
