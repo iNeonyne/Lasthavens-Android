@@ -1,0 +1,11 @@
+{
+  "repos": [
+    "iNeonyne/LastHavenPlus"
+  ],
+  "trigger_label": "openhands-review",
+  "trigger_reviewer": "all-hands-bot",
+  "max_new_per_run": 2,
+  "review_tone": "concise",
+  "maintainers": "",
+  "github_token_secret": "GITHUB_PERSONAL_ACCESS_TOKEN"
+}

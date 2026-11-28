@@ -310,6 +310,13 @@ private fun AddonCard(
           style = MaterialTheme.typography.bodySmall,
         )
       }
+      if (addon.sizeBytes > AddonLimits.MAX_RUNTIME_BUNDLE_BYTES) {
+        Text(
+          stringResource(R.string.addon_manager_runtime_too_large),
+          color = MaterialTheme.colorScheme.error,
+          style = MaterialTheme.typography.bodySmall,
+        )
+      }
       addon.warnings.forEach { warning ->
         Text(
           warning,

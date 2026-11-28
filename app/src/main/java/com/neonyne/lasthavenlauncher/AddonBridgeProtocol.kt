@@ -1,6 +1,7 @@
 package com.neonyne.lasthavenlauncher
 
 import java.util.Base64
+import java.util.Locale
 
 /**
  * Pure wire contract for the addon-bridge native messages (issue #167).
@@ -33,6 +34,8 @@ internal object AddonBridgeProtocol {
   const val KEY_OFFSET = "offset"
   const val KEY_DATA = "data"
   const val KEY_DONE = "done"
+  const val KEY_LOAD_FILES = "loadFiles"
+  const val KEY_REASON = "reason"
 
   const val MAX_REQUEST_ID_CHARS = 64
   const val MAX_MESSAGE_FIELDS = 6
@@ -55,10 +58,14 @@ internal object AddonBridgeProtocol {
       "ping",
       "listAddons",
       "getLoadOrder",
+      "getBootstrapPlan",
       "getBundleInfo",
       "getBundleManifestPage",
       "getFileChunk",
     )
+
+  /** Blocked reasons surfaced with the bootstrap plan; mirrors [AddonBlockedReason]. */
+  val BOOTSTRAP_BLOCKED_REASONS = setOf("missingDependencies", "dependencyCycle", "payloadTooLarge")
   val ERROR_CODES =
     setOf(
       "invalidRequest",
@@ -194,6 +201,34 @@ internal object AddonBridgeProtocol {
       )
   }
 
+  data class BootstrapAddonEntry(val folder: String, val loadFiles: List<String>)
+
+  data class BlockedAddon(val folder: String, val reason: String)
+
+  data class BootstrapPlanResponse(
+    override val requestId: String,
+    val revision: String,
+    val sourceRevision: String,
+    val addons: List<BootstrapAddonEntry>,
+    val blocked: List<BlockedAddon>,
+  ) : AddonBridgeResponse {
+    override fun toFields(): Map<String, Any?> =
+      mapOf(
+        KEY_TYPE to "bootstrapPlan",
+        KEY_REQUEST_ID to requestId,
+        KEY_REVISION to revision,
+        KEY_SOURCE_REVISION to sourceRevision,
+        KEY_ADDONS to
+          addons.map {
+            mapOf(KEY_FOLDER to it.folder, KEY_LOAD_FILES to it.loadFiles)
+          },
+        KEY_BLOCKED to
+          blocked.map {
+            mapOf(KEY_FOLDER to it.folder, KEY_REASON to it.reason)
+          },
+      )
+  }
+
   data class FileChunkResponse(
     override val requestId: String,
     val revision: String,
@@ -230,7 +265,8 @@ internal object AddonBridgeProtocol {
       "ping",
       "listAddons",
       "getLoadOrder",
-      "getBundleInfo" -> {
+      "getBundleInfo",
+      "getBootstrapPlan" -> {
         if (fields.keys != setOf(KEY_TYPE, KEY_REQUEST_ID)) return null
         AddonBridgeRequest(type, requestId)
       }
@@ -305,6 +341,37 @@ internal object AddonBridgeProtocol {
     if (loadOrder.size + blocked.size > MAX_RESPONSE_ITEMS) return null
     if ((loadOrder + blocked).any { !isFolderName(it) }) return null
     return LoadOrderResponse(requestId, revision, loadOrder, blocked)
+  }
+
+  /**
+   * Builds the page bootstrap plan (issue #245): validated TOC load-file entry points per ordered
+   * addon plus the blocked addons with reasons. Every list is bounded and path-validated; the total
+   * entry count is additionally capped by [MAX_RESPONSE_ITEMS] so the response always fits the
+   * bounded response transport.
+   */
+  fun bootstrapPlan(
+    requestId: String,
+    revision: String,
+    sourceRevision: String,
+    addons: List<BootstrapAddonEntry>,
+    blocked: List<BlockedAddon>,
+  ): BootstrapPlanResponse? {
+    if (!isRequestIdValid(requestId)) return null
+    if (!BUNDLE_REVISION_PATTERN.matches(revision)) return null
+    if (!isRevisionValid(sourceRevision)) return null
+    if (addons.size > MAX_RUNTIME_ADDONS || blocked.size > MAX_RUNTIME_ADDONS) return null
+    val folders = addons.map { it.folder }
+    if (folders.any { !isFolderName(it) }) return null
+    if (folders.size != folders.map { it.lowercase(Locale.ROOT) }.toSet().size) return null
+    if (addons.sumOf { it.loadFiles.size } > MAX_RESPONSE_ITEMS) return null
+    for (entry in addons) {
+      if (entry.loadFiles.size != entry.loadFiles.toSet().size) return null
+      if (entry.loadFiles.any { !isSafeRelativePath(it) }) return null
+    }
+    if (blocked.any { !isFolderName(it.folder) || it.reason !in BOOTSTRAP_BLOCKED_REASONS }) {
+      return null
+    }
+    return BootstrapPlanResponse(requestId, revision, sourceRevision, addons, blocked)
   }
 
   fun bundleInfo(

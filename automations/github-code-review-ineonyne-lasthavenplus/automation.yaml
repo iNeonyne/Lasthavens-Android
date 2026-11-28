@@ -1,0 +1,36 @@
+agent_profile_id: null
+enabled: false
+entrypoint: python3 worker.py
+keep_alive: null
+model: Default
+name: GitHub code review - iNeonyne/LastHavenPlus
+observability_associations: null
+preset_metadata:
+  first_run:
+    failure_stage: null
+    recorded_at: '2026-11-27T19:03:02.614103+00:00'
+    status: success
+    template_version: 1.11.3
+  template:
+    config:
+      github_token_secret: GITHUB_PERSONAL_ACCESS_TOKEN
+      maintainers: ''
+      max_new_per_run: 2
+      repos:
+      - iNeonyne/LastHavenPlus
+      review_tone: concise
+      trigger_label: openhands-review
+      trigger_reviewer: all-hands-bot
+    id: github-pr-reviewer
+    version: 1.11.3
+prompt: null
+setup_script_path: null
+state: INACTIVE
+tarball_source:
+  type: internal
+  url: null
+timeout: 300
+trigger:
+  schedule: '*/5 * * * *'
+  timezone: UTC
+  type: cron

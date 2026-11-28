@@ -5,7 +5,7 @@ labels: []
 body:
   - type: markdown
     attributes:
-      value: "Search existing issues first. A request is not automatically approved or scheduled; it will be triaged against the project goal, complexity and release plan."
+      value: "Search existing issues first. A request is not automatically approved or scheduled; it will be triaged against the project goal, complexity and release plan. The agent ownership label is applied automatically after creation; only Chaty assigns an implementation owner."
   - type: textarea
     id: problem
     attributes:

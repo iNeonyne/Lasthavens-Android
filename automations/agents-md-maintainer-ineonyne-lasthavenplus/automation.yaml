@@ -1,0 +1,32 @@
+agent_profile_id: null
+enabled: false
+entrypoint: python3 main.py
+keep_alive: null
+model: Default
+name: AGENTS.md Maintainer - iNeonyne/LastHavenPlus
+observability_associations: null
+preset_metadata:
+  first_run:
+    failure_stage: null
+    recorded_at: '2026-11-27T18:59:56.666419+00:00'
+    status: success
+    template_version: 1.1.0
+  template:
+    config:
+      branch_prefix: openhands/agents-md
+      pull_request_mode: ready
+      repos:
+      - iNeonyne/LastHavenPlus
+    id: github-agents-md-maintainer
+    version: 1.1.0
+prompt: null
+setup_script_path: null
+state: INACTIVE
+tarball_source:
+  type: internal
+  url: null
+timeout: 900
+trigger:
+  schedule: 0 9 * * 1
+  timezone: UTC
+  type: cron

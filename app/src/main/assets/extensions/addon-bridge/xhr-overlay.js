@@ -883,16 +883,61 @@
     }, 0);
   }
 
+  function cachedIndexForBridgeRevision(bridge) {
+    if (typeof bridge.getRevision !== "function") {
+      return null;
+    }
+    let revision = null;
+    try {
+      revision = bridge.getRevision();
+    } catch (_error) {
+      return null;
+    }
+    if (revision === null) {
+      // The bridge publishes no bundle revision yet: the payload must not be cloned.
+      return false;
+    }
+    if (bundleCache.index !== null && revision === bundleCache.revision) {
+      return bundleCache.index;
+    }
+    return null;
+  }
+
+  function dropCachedBundle() {
+    bundleCache.revision = null;
+    bundleCache.index = null;
+  }
+
   function resolveBundleNow() {
     const bridge = global[BRIDGE_KEY];
     if (!bridge || typeof bridge.getBundle !== "function") {
       return bundleCache.index;
     }
+    const cached = cachedIndexForBridgeRevision(bridge);
+    if (cached === false) {
+      let bridgeState = null;
+      try {
+        bridgeState = typeof bridge.getState === "function" ? bridge.getState() : null;
+      } catch (_error) {
+        bridgeState = null;
+      }
+      if (bridgeState && !bridgeState.ready) {
+        // A live state that no longer reports a bundle means the payload was torn down
+        // (session replacement): drop the cached page-side data instead of serving it.
+        dropCachedBundle();
+      }
+      return null;
+    }
+    if (cached !== null) {
+      return cached;
+    }
     let payload = null;
     let bridgeState = null;
     try {
       payload = bridge.getBundle();
-      bridgeState = typeof bridge.getState === "function" ? bridge.getState() : null;
+      if (!payload && typeof bridge.getState === "function") {
+        bridgeState = bridge.getState();
+      }
     } catch (_error) {
       payload = null;
     }
@@ -902,7 +947,10 @@
     if (bridgeState && bridgeState.ready) {
       return null;
     }
-    return bundleCache.index;
+    if (bridgeState) {
+      dropCachedBundle();
+    }
+    return null;
   }
 
   function waitForBundle(target, state, requestId, onResolved) {
@@ -916,11 +964,25 @@
       let payload = null;
       let bridgeState = null;
       if (bridge && typeof bridge.getBundle === "function") {
-        try {
-          payload = bridge.getBundle();
-          bridgeState = typeof bridge.getState === "function" ? bridge.getState() : null;
-        } catch (_error) {
-          payload = null;
+        const cached = cachedIndexForBridgeRevision(bridge);
+        if (cached === false) {
+          try {
+            bridgeState = typeof bridge.getState === "function" ? bridge.getState() : null;
+          } catch (_error) {
+            bridgeState = null;
+          }
+        } else if (cached !== null) {
+          onResolved(cached);
+          return;
+        } else {
+          try {
+            payload = bridge.getBundle();
+            if (!payload && typeof bridge.getState === "function") {
+              bridgeState = bridge.getState();
+            }
+          } catch (_error) {
+            payload = null;
+          }
         }
       }
       if (payload) {

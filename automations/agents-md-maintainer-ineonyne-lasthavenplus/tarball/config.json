@@ -1,0 +1,7 @@
+{
+  "repos": [
+    "iNeonyne/LastHavenPlus"
+  ],
+  "branch_prefix": "openhands/agents-md",
+  "pull_request_mode": "ready"
+}

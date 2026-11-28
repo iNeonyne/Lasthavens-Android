@@ -5,7 +5,7 @@ labels: []
 body:
   - type: markdown
     attributes:
-      value: "Use this for work with a clear deliverable. Split independent work into separate issues only when ownership and file scope can be kept separate."
+      value: "Use this for work with a clear deliverable. Split independent work into separate issues only when ownership and file scope can be kept separate. The agent ownership label is applied automatically after creation; only Chaty assigns an implementation owner."
   - type: textarea
     id: objective
     attributes:

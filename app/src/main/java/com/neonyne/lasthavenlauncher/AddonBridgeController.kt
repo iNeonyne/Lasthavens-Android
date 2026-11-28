@@ -465,6 +465,86 @@ internal class AddonBridgeController(
     }
   }
 
+  /**
+   * Serves the bootstrap plan asynchronously (issue #245): TOC entry-point extraction reads the
+   * library from disk, so it runs on the worker executor under the shared library lock and answers
+   * through the same pending-request/generation guards as file chunks.
+   */
+  private fun handleBootstrapPlan(
+    request: AddonBridgeProtocol.AddonBridgeRequest,
+    port: WebExtension.Port,
+  ) {
+    val snapshot =
+      cachedSnapshot
+        ?: run {
+          sendPortError(port, request.requestId, "unavailable")
+          return
+        }
+    val manifest =
+      cachedPayloadManifest
+        ?: run {
+          sendPortError(port, request.requestId, payloadErrorCode ?: "unavailable")
+          return
+        }
+    val generation = requestGeneration
+    val pending = registerPendingRequest(request.requestId, port, generation)
+    if (pending == null) {
+      port.disconnect()
+      return
+    }
+
+    try {
+      worker.execute {
+        val response = runCatching {
+          val plan = AddonRuntimePlanner.plan(snapshot)
+          val entryPoints = payloadProvider.entryPoints(manifest)
+          val entries =
+            plan.orderedAddons.map {
+              AddonBridgeProtocol.BootstrapAddonEntry(it.folder, entryPoints[it.folder].orEmpty())
+            }
+          val blocked =
+            plan.blockedAddons.map { (folder, reason) ->
+              AddonBridgeProtocol.BlockedAddon(folder, blockedReasonCode(reason))
+            }
+          AddonBridgeProtocol.bootstrapPlan(
+            request.requestId,
+            manifest.revision,
+            manifest.sourceRevision,
+            entries,
+            blocked,
+          )
+        }
+          .getOrNull()
+        mainHandler.post {
+          if (pendingRequests[request.requestId] !== pending) return@post
+          completePendingRequest(request.requestId, pending)
+          if (
+            pending.generation != requestGeneration ||
+              generation != requestGeneration ||
+              !connectedPorts.contains(port)
+          ) {
+            return@post
+          }
+          if (response == null) {
+            sendPortError(port, request.requestId, "payloadTooLarge")
+          } else {
+            postPortResponse(port, response)
+          }
+        }
+      }
+    } catch (_: Exception) {
+      completePendingRequest(request.requestId, pending)
+      sendPortError(port, request.requestId, "unavailable")
+    }
+  }
+
+  private fun blockedReasonCode(reason: AddonBlockedReason): String =
+    when (reason) {
+      is AddonBlockedReason.MissingDependencies -> "missingDependencies"
+      AddonBlockedReason.DependencyCycle -> "dependencyCycle"
+      is AddonBlockedReason.TooLarge -> "payloadTooLarge"
+    }
+
   private fun senderAllowed(sender: WebExtension.MessageSender?): Boolean {
     if (sender == null) return false
     val extension = sender.webExtension
@@ -518,6 +598,8 @@ internal class AddonBridgeController(
         val request = AddonBridgeProtocol.parse(fields) ?: return
         if (request.type == "getFileChunk") {
           handleFileChunk(request, port)
+        } else if (request.type == "getBootstrapPlan") {
+          handleBootstrapPlan(request, port)
         } else {
           val response = respond(request)
           if (response != null) {

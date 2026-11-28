@@ -200,7 +200,7 @@ function validateContentRequest(message) {
   if (!message || typeof message !== "object" || Array.isArray(message)) {
     return null;
   }
-  if (message.type === "getBundleInfo") {
+  if (message.type === "getBundleInfo" || message.type === "getBootstrapPlan") {
     return Object.keys(message).length === 1 ? { type: message.type, fields: {} } : null;
   }
   if (message.type === "getBundleManifestPage") {

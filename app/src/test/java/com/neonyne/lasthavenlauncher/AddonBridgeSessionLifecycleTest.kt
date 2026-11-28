@@ -118,4 +118,34 @@ class AddonBridgeSessionLifecycleTest {
       teardown.contains("setMessageDelegate(null, AddonBridgePolicy.NATIVE_MESSAGING_NAME)"),
     )
   }
+
+  @Test
+  fun `bootstrap plan requests run through the bounded async pending-request path`() {
+    val source = controllerSource()
+
+    assertTrue(
+      "the port delegate must route getBootstrapPlan to the async handler",
+      source.contains("request.type == \"getBootstrapPlan\""),
+    )
+    val handler =
+      source
+        .substringAfter("private fun handleBootstrapPlan(")
+        .substringBefore("private fun blockedReasonCode")
+    assertTrue(
+      "the bootstrap handler must register the request so timeouts and generations apply",
+      handler.contains("registerPendingRequest(request.requestId, port, generation)"),
+    )
+    assertTrue(
+      "the bootstrap handler must compute on the worker executor, not the message thread",
+      handler.contains("worker.execute {"),
+    )
+    assertTrue(
+      "late bootstrap responses must be dropped when the generation moved on",
+      handler.contains("pending.generation != requestGeneration"),
+    )
+    assertTrue(
+      "the bootstrap handler must surface blocked addons with protocol reasons",
+      source.contains("private fun blockedReasonCode(reason: AddonBlockedReason): String"),
+    )
+  }
 }

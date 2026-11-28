@@ -32,10 +32,10 @@ data class ImportedAddon(
 )
 
 object AddonArchive {
-  const val MAX_ARCHIVE_BYTES = 128L * 1024 * 1024
-  const val MAX_EXPANDED_BYTES = 256L * 1024 * 1024
-  const val MAX_FILE_BYTES = 64L * 1024 * 1024
-  const val MAX_TOC_BYTES = 1024L * 1024
+  const val MAX_ARCHIVE_BYTES = AddonLimits.MAX_ARCHIVE_BYTES
+  const val MAX_EXPANDED_BYTES = AddonLimits.MAX_EXPANDED_BYTES
+  const val MAX_FILE_BYTES = AddonLimits.MAX_FILE_BYTES
+  const val MAX_TOC_BYTES = AddonLimits.MAX_TOC_BYTES
   const val MAX_TITLE_CHARS = 256
   const val MAX_VERSION_CHARS = 128
   const val MAX_INTERFACE_CHARS = 256
@@ -44,7 +44,7 @@ object AddonArchive {
   const val MAX_DEPENDENCY_NAME_CHARS = 128
   const val MAX_ENTRIES = 32_000
   const val MAX_ADDONS_PER_ARCHIVE = 256
-  const val MAX_LIBRARY_BYTES = 384L * 1024 * 1024
+  const val MAX_LIBRARY_BYTES = AddonLimits.MAX_LIBRARY_BYTES
 
   private data class TocMetadata(
     val title: String,
@@ -303,15 +303,51 @@ object AddonArchive {
       require(tocFile.length() <= MAX_TOC_BYTES) { "Addon TOC exceeds the 1 MiB limit." }
       val metadata = parseToc(String(tocFile.readBytes(), StandardCharsets.UTF_8))
       val total = ownFiles.values.sumOf { it.length() }
-      val warnings =
+      val warnings = buildList {
         if (
           metadata.interfaceVersion.isNotBlank() &&
             "30300" !in metadata.interfaceVersion.split(Regex("[,\\s]+"))
         ) {
-          listOf("The TOC does not declare Interface 30300. Compatibility is unverified.")
-        } else {
-          emptyList()
+          add("The TOC does not declare Interface 30300. Compatibility is unverified.")
         }
+        for ((path, file) in ownFiles) {
+          if (file.length() > AddonLimits.MAX_RUNTIME_FILE_BYTES) {
+            add(
+              "File '$path' exceeds the " +
+                "${AddonLimits.MAX_RUNTIME_FILE_BYTES / (1024L * 1024L)} MiB runtime per-file " +
+                "limit; the addon cannot load into the game runtime.",
+            )
+          }
+        }
+        if (total > AddonLimits.MAX_RUNTIME_BUNDLE_BYTES) {
+          add(
+            "The addon exceeds the " +
+              "${AddonLimits.MAX_RUNTIME_BUNDLE_BYTES / (1024L * 1024L)} MiB runtime bundle " +
+              "limit; it cannot load into the game runtime.",
+          )
+        }
+        if (ownFiles.size > AddonLimits.MAX_RUNTIME_FILES) {
+          add(
+            "The addon contains more than ${AddonLimits.MAX_RUNTIME_FILES} files and cannot load " +
+              "into the game runtime.",
+          )
+        }
+        val runtimeEntries = mutableSetOf<String>()
+        for (path in ownFiles.keys) {
+          var prefix = ""
+          for (segment in path.split('/')) {
+            prefix = if (prefix.isEmpty()) segment else "$prefix/$segment"
+            runtimeEntries += prefix
+          }
+        }
+        if (runtimeEntries.size > AddonLimits.MAX_RUNTIME_ENTRIES_PER_ADDON) {
+          add(
+            "The addon exceeds the " +
+              "${AddonLimits.MAX_RUNTIME_ENTRIES_PER_ADDON} runtime file and directory entry " +
+              "limit; it cannot load into the game runtime.",
+          )
+        }
+      }
 
       ImportedAddon(
         title = metadata.title.ifBlank { root.folder },

@@ -36,6 +36,7 @@
     <string name="addon_manager_export_failed">Addon export failed.</string>
     <string name="addon_manager_read_failed">Could not read addon library.</string>
     <string name="addon_manager_dependency_cycle">Dependency cycle detected between addons.</string>
+    <string name="addon_manager_runtime_too_large">Too large for the game runtime; it will not load into the game.</string>
     <string name="addon_manager_replace_confirm_title" tools:ignore="MissingTranslation">Replace existing addons?</string>
     <string name="addon_manager_replace_confirm_message" tools:ignore="MissingTranslation">The following addon folders already exist. Importing this ZIP will replace their current files. Continue?</string>
     <string name="addon_manager_replace" tools:ignore="MissingTranslation">Replace</string>

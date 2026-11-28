@@ -23,6 +23,7 @@
     <string name="addon_manager_export_failed">Falha ao exportar o addon.</string>
     <string name="addon_manager_read_failed">Não foi possível ler a biblioteca de addons.</string>
     <string name="addon_manager_dependency_cycle">Foi detectado um ciclo de dependências entre os complementos.</string>
+    <string name="addon_manager_runtime_too_large">Grande demais para o runtime do jogo; não será carregado no jogo.</string>
     <string name="addon_manager_remove_confirm_title">Remover complemento?</string>
     <string name="addon_manager_remove_confirm_message">Remover %1$s deste dispositivo? Esta ação não pode ser desfeita.</string>
     <string name="addon_manager_cancel">Cancelar</string>

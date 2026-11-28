@@ -21,6 +21,7 @@ class AddonBridgeAssetsTest {
     assertTrue(File(dir, "bridge.js").isFile)
     assertTrue(File(dir, "xhr-overlay.js").isFile)
     assertTrue(File(dir, "worker-overlay.js").isFile)
+    assertTrue(File(dir, "addon-bootstrap.js").isFile)
   }
 
   @Test
@@ -36,14 +37,15 @@ class AddonBridgeAssetsTest {
     assertTrue(manifest.contains("\"bridge.js\""))
     assertTrue(manifest.contains("\"xhr-overlay.js\""))
     assertTrue(manifest.contains("\"worker-overlay.js\""))
+    assertTrue(manifest.contains("\"addon-bootstrap.js\""))
     assertTrue(manifest.contains("\"world\": \"MAIN\""))
     assertFalse(manifest.contains("\"<all_urls>\""))
     assertFalse(manifest.contains("\"all_frames\": true"))
     assertEquals(1, Regex("\"content_scripts\"").findAll(manifest).count())
-    assertEquals(3, Regex("\"matches\"").findAll(manifest).count())
-    assertEquals(3, Regex("\"run_at\"").findAll(manifest).count())
-    assertEquals(3, Regex("\"all_frames\"").findAll(manifest).count())
-    assertEquals(2, Regex("\"world\": \"MAIN\"").findAll(manifest).count())
+    assertEquals(4, Regex("\"matches\"").findAll(manifest).count())
+    assertEquals(4, Regex("\"run_at\"").findAll(manifest).count())
+    assertEquals(4, Regex("\"all_frames\"").findAll(manifest).count())
+    assertEquals(3, Regex("\"world\": \"MAIN\"").findAll(manifest).count())
     assertTrue(manifest.contains("\"all_frames\": false"))
   }
 
@@ -126,7 +128,7 @@ class AddonBridgeAssetsTest {
     val files = dir.walkTopDown().filter { it.isFile }.toList()
     assertTrue(files.size in 2..8)
     files.forEach { assertTrue("${it.name} too large", it.length() <= 64 * 1024) }
-    assertEquals(6, files.size)
+    assertEquals(7, files.size)
   }
 
   @Test
