@@ -52,7 +52,7 @@ class SettingsNavigationSmokeTest {
     composeRule.onAllNodesWithText("Network & storage").onFirst().performClick()
     composeRule.onNodeWithText("Game data size").assertIsDisplayed()
     composeRule.onNodeWithText("This app session").assertIsDisplayed()
-    composeRule.onNodeWithText("Tracked total").assertIsDisplayed()
+    composeRule.onNodeWithText("Lifetime total (tracked)").assertIsDisplayed()
     composeRule
       .onNodeWithText("Usage updates automatically while this page is open.")
       .assertIsDisplayed()
