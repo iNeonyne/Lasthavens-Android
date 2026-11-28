@@ -41,6 +41,171 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
+internal const val DEFAULT_GAME_URL = "https://lasthavens.com/play"
+internal const val ALTERNATE_GAME_URL = "https://alt.lasthavens.com/play"
+private const val PREFERENCES_NAME = UpdateFileCleanup.PREFERENCES_NAME
+private const val KEY_GAME_URL = "game_url"
+private const val KEY_PENDING_UPDATE_URI = UpdateFileCleanup.KEY_PENDING_UPDATE_URI
+private const val KEY_INSTALLER_HANDOFF_APK_NAME = UpdateFileCleanup.KEY_INSTALLER_HANDOFF_APK_NAME
+private const val KEY_INSTALLER_HANDOFF_CANDIDATE_APK_NAME =
+  UpdateFileCleanup.KEY_INSTALLER_HANDOFF_CANDIDATE_APK_NAME
+
+enum class Screen {
+  Home,
+  Game,
+  Settings,
+  Diagnostics,
+  Update,
+  AddonManager,
+}
+
+class MainActivity : ComponentActivity() {
+  private var pendingUpdateUri: Uri? = null
+  private var appliedUiState: GameplayUiState? = null
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    val preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
+    pendingUpdateUri = preferences.getString(KEY_PENDING_UPDATE_URI, null)?.let(Uri::parse)
+    Diagnostics.info(this, "Lifecycle", "Activity created")
+    WindowCompat.setDecorFitsSystemWindows(window, true)
+    setContent {
+      LastHavenApp(
+        preferences = preferences,
+        onExit = { finish() },
+        onGameplayUiChanged = ::applyGameplayUi,
+        onCheckUpdates = { callback -> AppUpdater.checkForUpdate(this, callback) },
+        onDownloadUpdate = { update, preferDelta, onProgress, callback ->
+          AppUpdater.downloadUpdate(this, update, preferDelta, callback, onProgress)
+        },
+        onInstallUpdate = ::installUpdate,
+      )
+    }
+  }
+
+  /**
+   * Single Activity/window boundary for app-window presentation (issue #148): every orientation,
+   * keep-awake and system-bar effect is derived from one immutable [GameplayUiState].
+   */
+  private fun applyGameplayUi(state: GameplayUiState) {
+    appliedUiState = state
+    WindowCompat.setDecorFitsSystemWindows(window, GameplayUiPolicy.decorFitsSystemWindows(state))
+    requestedOrientation = GameplayUiPolicy.orientation(state)
+    if (GameplayUiPolicy.keepScreenOn(state)) {
+      window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    } else {
+      window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+    if (GameplayUiPolicy.systemBarsVisible(state)) {
+      window.statusBarColor = GameplayUiPolicy.systemBarColorArgb
+      window.navigationBarColor = GameplayUiPolicy.systemBarColorArgb
+      WindowInsetsControllerCompat(window, window.decorView).apply {
+        isAppearanceLightStatusBars = GameplayUiPolicy.lightSystemBars(state)
+        isAppearanceLightNavigationBars = GameplayUiPolicy.lightSystemBars(state)
+        show(WindowInsetsCompat.Type.systemBars())
+      }
+    } else {
+      WindowInsetsControllerCompat(window, window.decorView).apply {
+        hide(WindowInsetsCompat.Type.systemBars())
+        systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+      }
+    }
+  }
+
+  override fun onWindowFocusChanged(hasFocus: Boolean) {
+    super.onWindowFocusChanged(hasFocus)
+    GameplayUiPolicy.onWindowFocus(appliedUiState, hasFocus)?.let(::applyGameplayUi)
+  }
+
+  private fun installUpdate(uri: Uri) {
+    val preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
+    if (!packageManager.canRequestPackageInstalls()) {
+      pendingUpdateUri = uri
+      check(preferences.edit().putString(KEY_PENDING_UPDATE_URI, uri.toString()).commit()) {
+        "Could not save the pending update installer request"
+      }
+      startActivity(
+        Intent(
+          Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+          Uri.parse("package:$packageName"),
+        ),
+      )
+      return
+    }
+
+    val handoffApkName =
+      UpdateFileCleanup.managedApkName(uri, packageName)
+        ?: error("Update installer URI does not reference a managed APK")
+    val previousHandoff = preferences.getString(KEY_INSTALLER_HANDOFF_APK_NAME, null)
+
+    // Persist a candidate before handing the URI to Android. If the process dies between the
+    // launch and promotion, cleanup protects both the previous handoff and this candidate.
+    check(
+      preferences
+        .edit()
+        .putString(KEY_INSTALLER_HANDOFF_CANDIDATE_APK_NAME, handoffApkName)
+        .remove(KEY_PENDING_UPDATE_URI)
+        .commit(),
+    ) {
+      "Could not protect the APK before installer handoff"
+    }
+
+    try {
+      startActivity(
+        Intent(Intent.ACTION_VIEW).apply {
+          setDataAndType(uri, "application/vnd.android.package-archive")
+          addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        },
+      )
+    } catch (error: Exception) {
+      val rollback =
+        preferences
+          .edit()
+          .remove(KEY_INSTALLER_HANDOFF_CANDIDATE_APK_NAME)
+          .putString(KEY_PENDING_UPDATE_URI, uri.toString())
+      if (previousHandoff == null) rollback.remove(KEY_INSTALLER_HANDOFF_APK_NAME)
+      else rollback.putString(KEY_INSTALLER_HANDOFF_APK_NAME, previousHandoff)
+      if (!rollback.commit()) {
+        Diagnostics.error(this, "Updater", "Could not restore installer handoff state")
+      }
+      pendingUpdateUri = uri
+      Diagnostics.error(
+        this,
+        "Updater",
+        "Could not open Android package installer: ${error.message}",
+      )
+      return
+    }
+
+    val promote =
+      preferences
+        .edit()
+        .putString(KEY_INSTALLER_HANDOFF_APK_NAME, handoffApkName)
+        .remove(KEY_INSTALLER_HANDOFF_CANDIDATE_APK_NAME)
+        .remove(KEY_PENDING_UPDATE_URI)
+    if (!promote.commit()) {
+      // The candidate was committed before launch and remains protected if promotion fails.
+      Diagnostics.warn(this, "Updater", "Installer opened, but handoff state promotion failed")
+    }
+    pendingUpdateUri = null
+  }
+
+  override fun onResume() {
+    super.onResume()
+    Diagnostics.info(this, "Lifecycle", "Activity resumed")
+    if (pendingUpdateUri == null) {
+      pendingUpdateUri =
+        getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
+          .getString(KEY_PENDING_UPDATE_URI, null)
+          ?.let(Uri::parse)
+    }
+    val uri = pendingUpdateUri
+    if (uri != null && packageManager.canRequestPackageInstalls()) {
+      installUpdate(uri)
+    }
+  }
+}
+
 @Composable
 private fun LastHavenApp(
   preferences: SharedPreferences,

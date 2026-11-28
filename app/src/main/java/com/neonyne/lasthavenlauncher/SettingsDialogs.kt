@@ -48,6 +48,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
+private enum class SettingsDestination(
+  val titleRes: Int,
+  val iconRes: Int,
+) {
+  GAME(R.string.settings_nav_game, R.drawable.ic_settings_game),
+  NETWORK_STORAGE(R.string.settings_nav_network_storage, R.drawable.ic_settings_network),
+  APPLICATION(R.string.settings_nav_application, R.drawable.ic_settings_info),
+}
+
 @Composable
 fun SettingsScreen(
   usageMeter: AppUsageMeter,
