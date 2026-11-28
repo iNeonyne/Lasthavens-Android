@@ -27,4 +27,12 @@
     <string name="addon_manager_remove_confirm_title">¿Eliminar complemento?</string>
     <string name="addon_manager_remove_confirm_message">¿Eliminar %1$s de este dispositivo? Esta acción no se puede deshacer.</string>
     <string name="addon_manager_cancel">Cancelar</string>
+    <string name="addon_manager_status_blocked">Bloqueado</string>
+    <string name="addon_manager_status_enabled">Activado</string>
+    <string name="addon_manager_status_disabled">Desactivado</string>
+    <string name="addon_manager_warnings_count">%1$d advertencias</string>
+    <string name="addon_manager_toggle">Cambiar estado de %1$s</string>
+    <string name="addon_manager_more_actions">Más acciones de %1$s</string>
+    <string name="addon_manager_details">Detalles</string>
+    <string name="addon_manager_details_close">Cerrar</string>
 </resources>

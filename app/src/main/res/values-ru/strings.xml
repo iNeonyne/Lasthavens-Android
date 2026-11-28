@@ -27,4 +27,12 @@
     <string name="addon_manager_remove_confirm_title">Удалить дополнение?</string>
     <string name="addon_manager_remove_confirm_message">Удалить %1$s с этого устройства? Это действие нельзя отменить.</string>
     <string name="addon_manager_cancel">Отмена</string>
+    <string name="addon_manager_status_blocked">Заблокирован</string>
+    <string name="addon_manager_status_enabled">Включён</string>
+    <string name="addon_manager_status_disabled">Выключен</string>
+    <string name="addon_manager_warnings_count">%1$d предупреждений</string>
+    <string name="addon_manager_toggle">Переключить состояние %1$s</string>
+    <string name="addon_manager_more_actions">Другие действия: %1$s</string>
+    <string name="addon_manager_details">Подробнее</string>
+    <string name="addon_manager_details_close">Закрыть</string>
 </resources>

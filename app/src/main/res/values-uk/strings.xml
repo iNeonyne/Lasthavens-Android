@@ -27,4 +27,12 @@
     <string name="addon_manager_remove_confirm_title">Видалити додаток?</string>
     <string name="addon_manager_remove_confirm_message">Видалити %1$s із цього пристрою? Цю дію не можна скасувати.</string>
     <string name="addon_manager_cancel">Скасувати</string>
+    <string name="addon_manager_status_blocked">Заблоковано</string>
+    <string name="addon_manager_status_enabled">Увімкнено</string>
+    <string name="addon_manager_status_disabled">Вимкнено</string>
+    <string name="addon_manager_warnings_count">%1$d попереджень</string>
+    <string name="addon_manager_toggle">Перемкнути стан %1$s</string>
+    <string name="addon_manager_more_actions">Інші дії для %1$s</string>
+    <string name="addon_manager_details">Деталі</string>
+    <string name="addon_manager_details_close">Закрити</string>
 </resources>
