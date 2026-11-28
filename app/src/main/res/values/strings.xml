@@ -112,13 +112,10 @@
 
     <string tools:ignore="MissingTranslation" name="settings_title">Settings &amp; usage</string>
     <string tools:ignore="MissingTranslation" name="settings_storage_section">Storage</string>
-    <string tools:ignore="MissingTranslation" name="settings_installed_apk">Installed APK</string>
-    <string tools:ignore="MissingTranslation" name="settings_persistent_data">Persistent app data</string>
-    <string tools:ignore="MissingTranslation" name="settings_storage_hint">Includes app-private files and GeckoView data; it is not a profile-only measurement.</string>
-    <string tools:ignore="MissingTranslation" name="settings_app_cache">App cache</string>
+    <string tools:ignore="MissingTranslation" name="settings_game_data_size">Game data size</string>
+    <string tools:ignore="MissingTranslation" name="settings_storage_hint">The launcher cannot read a storage estimate from the active game page.</string>
     <string tools:ignore="MissingTranslation" name="settings_refreshing">Refreshing…</string>
-    <string tools:ignore="MissingTranslation" name="settings_refresh_storage">Refresh storage</string>
-    <string tools:ignore="MissingTranslation" name="settings_value_measuring">Measuring…</string>
+    <string tools:ignore="MissingTranslation" name="settings_refresh_network">Refresh network usage</string>
     <string tools:ignore="MissingTranslation" name="settings_network_section">Network usage</string>
     <string tools:ignore="MissingTranslation" name="settings_received_since_boot">Received since device boot</string>
     <string tools:ignore="MissingTranslation" name="settings_sent_since_boot">Sent since device boot</string>

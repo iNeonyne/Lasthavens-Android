@@ -42,7 +42,6 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun SettingsScreen(
-  context: Context,
   usageMeter: AppUsageMeter,
   isCheckingUpdate: Boolean,
   gameUrl: String,
@@ -52,44 +51,27 @@ fun SettingsScreen(
   onOpenUpdates: () -> Unit,
   onCheckUpdates: () -> Unit,
 ) {
-  var snapshot by remember { mutableStateOf<UsageSnapshot?>(null) }
+  var snapshot by remember { mutableStateOf<NetworkUsageSnapshot?>(null) }
   var refreshKey by remember { mutableStateOf(0) }
   var refreshing by remember { mutableStateOf(false) }
 
   LaunchedEffect(refreshKey) {
     refreshing = true
-    snapshot = withContext(Dispatchers.IO) { usageMeter.snapshot() }
+    snapshot = withContext(Dispatchers.IO) { usageMeter.networkSnapshot() }
     refreshing = false
   }
 
   SettingsPageFrame(title = stringResource(R.string.settings_title), onBack = onBack) {
     PageSection(title = stringResource(R.string.settings_storage_section)) {
       InfoLine(
-        stringResource(R.string.settings_installed_apk),
-        snapshot?.installedApkBytes?.let(::formatBytes)
-          ?: stringResource(R.string.settings_value_measuring),
-      )
-      InfoLine(
-        stringResource(R.string.settings_persistent_data),
-        snapshot?.persistentDataBytes?.let(::formatBytes)
-          ?: stringResource(R.string.settings_value_measuring),
+        stringResource(R.string.settings_game_data_size),
+        stringResource(R.string.settings_value_not_available),
       )
       Text(
         stringResource(R.string.settings_storage_hint),
         color = DesignTokens.textSecondary,
         style = MaterialTheme.typography.bodySmall,
       )
-      InfoLine(
-        stringResource(R.string.settings_app_cache),
-        snapshot?.cacheBytes?.let(::formatBytes)
-          ?: stringResource(R.string.settings_value_measuring),
-      )
-      TextButton(onClick = { refreshKey++ }, enabled = !refreshing) {
-        Text(
-          if (refreshing) stringResource(R.string.settings_refreshing)
-          else stringResource(R.string.settings_refresh_storage),
-        )
-      }
     }
 
     PageSection(title = stringResource(R.string.settings_network_section)) {
@@ -118,6 +100,12 @@ fun SettingsScreen(
         color = DesignTokens.textSecondary,
         style = MaterialTheme.typography.bodySmall,
       )
+      TextButton(onClick = { refreshKey++ }, enabled = !refreshing) {
+        Text(
+          if (refreshing) stringResource(R.string.settings_refreshing)
+          else stringResource(R.string.settings_refresh_network),
+        )
+      }
     }
 
     PageSection(title = stringResource(R.string.settings_game_server_section)) {

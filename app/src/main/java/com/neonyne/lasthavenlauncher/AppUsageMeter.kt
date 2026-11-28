@@ -4,21 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.net.TrafficStats
 import android.os.Process
-import java.io.File
 
 data class NetworkUsageSnapshot(
-  val receivedSinceBootBytes: Long?,
-  val sentSinceBootBytes: Long?,
-  val receivedThisSessionBytes: Long?,
-  val sentThisSessionBytes: Long?,
-  val receivedTrackedTotalBytes: Long,
-  val sentTrackedTotalBytes: Long,
-)
-
-data class UsageSnapshot(
-  val installedApkBytes: Long,
-  val persistentDataBytes: Long,
-  val cacheBytes: Long,
   val receivedSinceBootBytes: Long?,
   val sentSinceBootBytes: Long?,
   val receivedThisSessionBytes: Long?,
@@ -44,29 +31,7 @@ class AppUsageMeter(context: Context) {
     )
 
   /** Samples only network counters; safe to poll while the Network & Storage page is visible. */
-  fun networkSnapshot(): NetworkUsageSnapshot = readNetworkSnapshot()
-
-  fun snapshot(): UsageSnapshot {
-    val network = readNetworkSnapshot()
-    val persistentData = appContext.filesDir
-    val apkFiles = buildList {
-      add(File(appContext.applicationInfo.sourceDir))
-      appContext.applicationInfo.splitSourceDirs?.forEach { add(File(it)) }
-    }
-    return UsageSnapshot(
-      installedApkBytes = apkFiles.sumOf { if (it.isFile) it.length() else 0L },
-      persistentDataBytes = directorySize(persistentData),
-      cacheBytes = directorySize(appContext.cacheDir) + directorySize(appContext.codeCacheDir),
-      receivedSinceBootBytes = network.receivedSinceBootBytes,
-      sentSinceBootBytes = network.sentSinceBootBytes,
-      receivedThisSessionBytes = network.receivedThisSessionBytes,
-      sentThisSessionBytes = network.sentThisSessionBytes,
-      receivedTrackedTotalBytes = network.receivedTrackedTotalBytes,
-      sentTrackedTotalBytes = network.sentTrackedTotalBytes,
-    )
-  }
-
-  private fun readNetworkSnapshot(): NetworkUsageSnapshot {
+  fun networkSnapshot(): NetworkUsageSnapshot {
     val rx = TrafficStats.getUidRxBytes(uid).takeIf { it >= 0L }
     val tx = TrafficStats.getUidTxBytes(uid).takeIf { it >= 0L }
     val tracked = networkTracker.sample(rx, tx)
@@ -84,12 +49,6 @@ class AppUsageMeter(context: Context) {
     if (current == null || initial == null) null
     else if (current >= initial) current - initial
     else current // The OS counter reset during this app process.
-
-  private fun directorySize(file: File): Long {
-    if (!file.exists()) return 0L
-    if (file.isFile) return file.length()
-    return file.listFiles()?.sumOf(::directorySize) ?: 0L
-  }
 
   private companion object {
     const val NETWORK_TOTALS_PREFERENCES = "network_usage_totals"
