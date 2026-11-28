@@ -121,8 +121,9 @@ class LauncherStringsResourceTest {
         "game_load_failed_hint" to "Check your connection and try again.",
         "game_crashed_title" to "LastHaven stopped unexpectedly",
         "game_crashed_hint" to "The game session ended. Restore the game to continue playing.",
+        "settings_game_data_size" to "Game data size",
         "settings_storage_hint" to
-          "Includes app-private files and GeckoView data; it is not a profile-only measurement.",
+          "The launcher cannot read a storage estimate from the active game page.",
         "settings_network_hint" to
           "Per-app totals include game and updater traffic. " +
             "They are stored locally and reset on device reboot.",
