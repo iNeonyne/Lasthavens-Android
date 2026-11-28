@@ -49,16 +49,16 @@ Update this file when strategic priorities, sequence or release direction change
 <!-- ROADMAP-LIVE-START -->
 ## Live issue and PR inventory
 
-Generated: 2026-11-28T18:17:16+00:00
+Generated: 2026-11-28T18:49:10+00:00
 Source of truth: live GitHub Issues, pull requests and labels. This section is generated automatically; do not edit it manually.
 
 Every open issue is listed below, grouped by its current priority. Opening a newer issue or PR does not supersede an older one. Duplicates and supersession must be explicitly reviewed and linked in GitHub.
 
 ### Active issues
 
-#### P0.1
+#### P0
 
-- [#4 — P0.1 — Improve build reproducibility and updater test coverage](https://github.com/iNeonyne/LastHavenPlus/issues/4) — bug, P0.1
+- [#4 — P0.1 — Improve build reproducibility and updater test coverage](https://github.com/iNeonyne/LastHavenPlus/issues/4) — bug, P0.1, P0
 
 #### P1
 
@@ -66,6 +66,9 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 
 #### P2
 
+- [#6 — P2 — Essential launcher settings and safe storage controls](https://github.com/iNeonyne/LastHavenPlus/issues/6) — enhancement, P2
+- [#11 — P2 — Privacy-conscious app and updater log tests](https://github.com/iNeonyne/LastHavenPlus/issues/11) — enhancement, P2
+- [#12 — P2 — Actionable GeckoView load-error details](https://github.com/iNeonyne/LastHavenPlus/issues/12) — bug, P2
 - [#14 — P2 — User-triggered connection diagnostics](https://github.com/iNeonyne/LastHavenPlus/issues/14) — enhancement, P2
 - [#15 — P2 — Make updater recovery safer](https://github.com/iNeonyne/LastHavenPlus/issues/15) — bug, P2
 - [#16 — P2 — Keep-awake preference for landscape-only gameplay](https://github.com/iNeonyne/LastHavenPlus/issues/16) — enhancement, P2
@@ -83,15 +86,12 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 
 #### P3
 
+- [#7 — P3 — Measure runtime performance and evaluate APK size improvements](https://github.com/iNeonyne/LastHavenPlus/issues/7) — enhancement, P3, maintenance
 - [#187 — P3 — Verify direct AndroidX dependencies are necessary](https://github.com/iNeonyne/LastHavenPlus/issues/187) — dependencies, P3
 - [#222 — P3 — Make the Android Back menu discoverable without persistent HUD](https://github.com/iNeonyne/LastHavenPlus/issues/222) — enhancement, P3
 
 #### Unprioritized
 
-- [#6 — P2 — Essential launcher settings and safe storage controls](https://github.com/iNeonyne/LastHavenPlus/issues/6) — enhancement
-- [#7 — P3 — Measure runtime performance and evaluate APK size improvements](https://github.com/iNeonyne/LastHavenPlus/issues/7) — enhancement
-- [#11 — P2 — Privacy-conscious app and updater log tests](https://github.com/iNeonyne/LastHavenPlus/issues/11) — enhancement
-- [#12 — P2 — Actionable GeckoView load-error details](https://github.com/iNeonyne/LastHavenPlus/issues/12) — bug
 - [#19 — P1 — Add an opt-in beta release channel to the updater](https://github.com/iNeonyne/LastHavenPlus/issues/19) — enhancement
 - [#23 — P0 — Complete Addon Manager ZIP 0.5.1 Phase B for GeckoView](https://github.com/iNeonyne/LastHavenPlus/issues/23) — enhancement
 - [#31 — P0 — Fix draft release asset verification and verify differential fallback](https://github.com/iNeonyne/LastHavenPlus/issues/31) — bug
