@@ -49,7 +49,7 @@ Update this file when strategic priorities, sequence or release direction change
 <!-- ROADMAP-LIVE-START -->
 ## Live issue and PR inventory
 
-Generated: 2026-11-28T18:49:33+00:00
+Generated: 2026-11-28T18:49:45+00:00
 Source of truth: live GitHub Issues, pull requests and labels. This section is generated automatically; do not edit it manually.
 
 Every open issue is listed below, grouped by its current priority. Opening a newer issue or PR does not supersede an older one. Duplicates and supersession must be explicitly reviewed and linked in GitHub.
@@ -89,7 +89,7 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 
 #### P3
 
-- [#7 — P3 — Measure runtime performance and evaluate APK size improvements](https://github.com/iNeonyne/LastHavenPlus/issues/7) — enhancement, P3, maintenance
+- [#7 — P3 — Measure runtime performance and evaluate APK size improvements](https://github.com/iNeonyne/LastHavenPlus/issues/7) — enhancement, P3
 - [#187 — P3 — Verify direct AndroidX dependencies are necessary](https://github.com/iNeonyne/LastHavenPlus/issues/187) — dependencies, P3, maintenance
 - [#222 — P3 — Make the Android Back menu discoverable without persistent HUD](https://github.com/iNeonyne/LastHavenPlus/issues/222) — enhancement, P3
 
