@@ -49,7 +49,7 @@ Update this file when strategic priorities, sequence or release direction change
 <!-- ROADMAP-LIVE-START -->
 ## Live issue and PR inventory
 
-Generated: 2026-11-28T18:08:33+00:00
+Generated: 2026-11-28T18:16:58+00:00
 Source of truth: live GitHub Issues, pull requests and labels. This section is generated automatically; do not edit it manually.
 
 Every open issue is listed below, grouped by its current priority. Opening a newer issue or PR does not supersede an older one. Duplicates and supersession must be explicitly reviewed and linked in GitHub.
@@ -76,7 +76,6 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 - [#230 — P2 — Handle malformed updater installer handoff state without crashing](https://github.com/iNeonyne/LastHavenPlus/issues/230) — bug, P2
 - [#231 — P2 — Make addon runtime origin restrictions visible to users](https://github.com/iNeonyne/LastHavenPlus/issues/231) — enhancement, P2
 - [#232 — P2 — Verify and constrain GeckoView popup and new-session requests](https://github.com/iNeonyne/LastHavenPlus/issues/232) — bug, P2, security
-- [#233 — P2 — Document the security trust model for installed addons](https://github.com/iNeonyne/LastHavenPlus/issues/233) — documentation, P2, security
 - [#234 — P2 — Apply small updater, bridge protocol and archive safety cleanups](https://github.com/iNeonyne/LastHavenPlus/issues/234) — P2, maintenance
 - [#235 — P2 — Preserve explicit return destinations when opening Diagnostics](https://github.com/iNeonyne/LastHavenPlus/issues/235) — bug, P2
 - [#243 — P2 — Include version and channel in published APK asset names](https://github.com/iNeonyne/LastHavenPlus/issues/243) — enhancement, P2
@@ -102,13 +101,12 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 ### Open pull requests
 
 - [#250 — ui: start landscape launcher redesign and POCO smoke coverage (#248)](https://github.com/iNeonyne/LastHavenPlus/pull/250) (beta <- chaty/native-landscape-ui-248)
-- [#261 — docs(addons): document the addon security trust model](https://github.com/iNeonyne/LastHavenPlus/pull/261) (beta <- chaty/addon-trust-docs-rebased)
-- [#262 — Show unavailable game storage when no origin estimate is accessible](https://github.com/iNeonyne/LastHavenPlus/pull/262) (beta <- chaty/game-origin-storage-rebased)
 
 ### Recently completed (last 30 days)
 
 - [#245 — P0 — Diagnose and implement actual enabled-addon script injection](https://github.com/iNeonyne/LastHavenPlus/issues/245)
 - [#244 — P1 — Make the game reload action reliably navigate and confirm completion](https://github.com/iNeonyne/LastHavenPlus/issues/244)
+- [#233 — P2 — Document the security trust model for installed addons](https://github.com/iNeonyne/LastHavenPlus/issues/233)
 - [#229 — P1 — Cache page-side addon bundle clones by revision](https://github.com/iNeonyne/LastHavenPlus/issues/229)
 - [#228 — P1 — Reconcile addon import and runtime payload size limits](https://github.com/iNeonyne/LastHavenPlus/issues/228)
 - [#227 — P1 — Serialize addon library access and transaction recovery](https://github.com/iNeonyne/LastHavenPlus/issues/227)
@@ -154,6 +152,7 @@ Every open issue is listed below, grouped by its current priority. Opening a new
 - [#56 — [COMPLETE] P1 — Direct launch and responsive in-game overlay](https://github.com/iNeonyne/LastHavenPlus/issues/56)
 - [#42 — Superseded — v2.1.0 Home-screen UI verification](https://github.com/iNeonyne/LastHavenPlus/issues/42)
 - [#29 — P1 — Reconcile beta documentation with current source and CI evidence](https://github.com/iNeonyne/LastHavenPlus/issues/29)
+- [#28 — P1 — Measure game-origin storage accurately for Network & Storage](https://github.com/iNeonyne/LastHavenPlus/issues/28)
 - [#22 — P1 — Add the LastHavenPlus home screen with Play and Settings](https://github.com/iNeonyne/LastHavenPlus/issues/22)
 - [#21 — Owner feedback — GeckoView runtime and profile behavior after release](https://github.com/iNeonyne/LastHavenPlus/issues/21)
 - [#20 — P1 — Complete the GeckoView 160 artifact and dependency audit](https://github.com/iNeonyne/LastHavenPlus/issues/20)
