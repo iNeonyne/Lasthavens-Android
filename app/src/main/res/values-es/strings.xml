@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="updates_release_notes_truncated">Solo se muestra el comienzo de las notas de la versión.</string>
     <string name="addon_manager_title">GESTOR DE COMPLEMENTOS</string>
     <string name="addon_manager_local_addons">Complementos locales</string>
     <string name="addon_manager_back">Atrás</string>

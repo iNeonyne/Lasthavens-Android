@@ -54,6 +54,7 @@
     <string tools:ignore="MissingTranslation" name="updates_checking">Checking the stable release channel…</string>
     <string tools:ignore="MissingTranslation" name="updates_available">LastHavenPlus %1$s is available.</string>
     <string tools:ignore="MissingTranslation" name="updates_delta_available">A smaller differential package is available (%1$s MiB).</string>
+    <string name="updates_release_notes_truncated">Only the beginning of the release notes is shown.</string>
     <string tools:ignore="MissingTranslation" name="updates_downloading_delta">Downloading differential update…</string>
     <string tools:ignore="MissingTranslation" name="updates_downloading_full">Downloading full APK…</string>
     <string tools:ignore="MissingTranslation" name="updates_download_smaller">Download smaller update</string>

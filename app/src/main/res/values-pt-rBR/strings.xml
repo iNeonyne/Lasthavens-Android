@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="updates_release_notes_truncated">Apenas o início das notas da versão é exibido.</string>
     <string name="addon_manager_title">GERENCIADOR DE ADDONS</string>
     <string name="addon_manager_local_addons">Addons locais</string>
     <string name="addon_manager_back">Voltar</string>
